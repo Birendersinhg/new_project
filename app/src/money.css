@@ -1,0 +1,8 @@
+.phone.money { background: #ececec; }
+.balance-card b small { display: inline-block; margin-left: 8px; padding: 4px 10px; border-radius: 10px; background: rgba(255,255,255,.25); font-size: 13px; font-weight: 600; vertical-align: middle; }
+.query-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; background: #fff; color: #888; font-size: 14px; }
+.query-card > svg { color: #d32f2f; flex: none; }
+.query-card > span { flex: 1; }
+.query-card button { display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 14px; }
+.q-call { background: #fdecea; color: #d32f2f; }
+.q-wa { background: #e6f8ee; color: #22b35e; }
