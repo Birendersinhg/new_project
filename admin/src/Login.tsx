@@ -1,8 +1,9 @@
+import type { FormEvent } from 'react';
 import { Dices } from 'lucide-react';
 import { Field } from './ui';
 
-export default function Login({ onLogin }) {
-  const submit = (e) => { e.preventDefault(); onLogin(); };
+export default function Login({ onLogin }: { onLogin: () => void }) {
+  const submit = (e: FormEvent) => { e.preventDefault(); onLogin(); };
   return (
     <div className="login-wrap">
       <div className="login-card">

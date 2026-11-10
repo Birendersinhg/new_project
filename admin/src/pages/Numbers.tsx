@@ -1,20 +1,21 @@
+import type { ReactNode } from 'react';
 import { PageHeader, Card } from '../ui';
 import { SINGLE_DIGITS, JODI_DIGITS, TRIPLE_PANA, SINGLE_PANA_BY_ANK, DOUBLE_PANA_BY_ANK, ALL_PANAS } from '../data';
 
-const Grid = ({ items, wide }) => (
+const Grid = ({ items, wide = false }: { items: string[]; wide?: boolean }) => (
   <div className="num-grid">
     {items.map((n) => <div key={n} className={'num-box' + (wide ? ' wide' : '')}>{n}</div>)}
   </div>
 );
 
-const Page = ({ title, current, children }) => (
+const Page = ({ title, current, children }: { title: string; current: string; children?: ReactNode }) => (
   <>
     <PageHeader title={title} trail="Game & Numbers" current={current} />
     {children}
   </>
 );
 
-const ByAnk = ({ groups }) => groups.map((g) => (
+const ByAnk = ({ groups }: { groups: { ank: string; items: string[] }[] }) => groups.map((g) => (
   <div className="ank-group" key={g.ank}>
     <div className="ank-label">Single Ank <span className="ank-chip">{g.ank}</span></div>
     <Grid items={g.items} wide />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, Globe, Smartphone, PlayCircle, Gift, UserPlus, CreditCard, RefreshCw, Target, Dices, QrCode, Check, Pencil, Trash2 } from 'lucide-react';
+import { Zap, Globe, Smartphone, PlayCircle, Gift, UserPlus, CreditCard, RefreshCw, Target, Dices, QrCode, Check } from 'lucide-react';
 import { PageHeader, Card, Field, DataTable, Modal, useDemo } from '../ui';
 
 export function AutoActive() {
@@ -55,7 +55,7 @@ export function MainSettings() {
   const [days, setDays] = useState(new Set(DAYS));
   const [mpin, setMpin] = useState('off');
   const [slider, setSlider] = useState('on');
-  const toggleDay = (d) => setDays((s) => { const n = new Set(s); n.has(d) ? n.delete(d) : n.add(d); return n; });
+  const toggleDay = (d: string) => setDays((s) => { const n = new Set(s); n.has(d) ? n.delete(d) : n.add(d); return n; });
 
   return (
     <>

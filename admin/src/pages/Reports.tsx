@@ -1,6 +1,7 @@
 import { Link2 } from 'lucide-react';
 import { PageHeader, Card, Field, DateInput, GameSelect, DataTable, useDemo } from '../ui';
 import { SINGLE_DIGITS, JODI_DIGITS, SINGLE_PANA, DOUBLE_PANA, TRIPLE_PANA, GAME_TYPES } from '../data';
+import type { Go } from '../types';
 
 const TypeSelect = () => (
   <select className="select"><option>All</option>{GAME_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
@@ -28,7 +29,7 @@ export function BidHistory() {
   );
 }
 
-const SellSection = ({ title, items }) => (
+const SellSection = ({ title, items }: { title: string; items: string[] }) => (
   <Card>
     <div className="sell-section-head"><h6>{title}</h6><span>Subtotal: ₹ 0</span></div>
     <div className="sell-grid">
@@ -83,7 +84,7 @@ export function WinningReport() {
   );
 }
 
-export function BidWinReport({ go }) {
+export function BidWinReport({ go }: { go: Go }) {
   const demo = useDemo();
   return (
     <>
@@ -122,7 +123,15 @@ export function WithdrawReport() {
   );
 }
 
-const AUTO_DEPOSITS = []; // { name, phone, amount, date, status }
+interface AutoDeposit {
+  name: string;
+  phone: string;
+  amount: number;
+  date: string;
+  status: string;
+}
+
+const AUTO_DEPOSITS: AutoDeposit[] = [];
 
 export function AutoDepositHistory() {
   const demo = useDemo();
@@ -156,7 +165,14 @@ export function AutoDepositHistory() {
   );
 }
 
-const ADD_FUNDS = []; // { name, phone, amount, date }
+interface AddFund {
+  name: string;
+  phone: string;
+  amount: number;
+  date: string;
+}
+
+const ADD_FUNDS: AddFund[] = [];
 
 export function AddFundReport() {
   const demo = useDemo();

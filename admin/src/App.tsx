@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import Layout from './Layout';
 import Login from './Login';
 import Dashboard from './pages/Dashboard';
@@ -8,8 +8,9 @@ import * as Reports from './pages/Reports';
 import * as WalletPages from './pages/Wallet';
 import * as Numbers from './pages/Numbers';
 import * as SettingsPages from './pages/Settings';
+import type { Go, PageParams, PageProps } from './types';
 
-const PAGES = {
+const PAGES: Record<string, ComponentType<PageProps>> = {
   dashboards: Dashboard,
   user_management: UserList,
   'user-details': UserDetails,
@@ -47,7 +48,7 @@ const readTab = () => new URLSearchParams(location.search).get('tab') || 'dashbo
 export default function App() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem('demo-auth') === '1');
   const [tab, setTab] = useState(readTab);
-  const [params, setParams] = useState({});
+  const [params, setParams] = useState<PageParams>({});
 
   useEffect(() => {
     const onPop = () => setTab(readTab());
@@ -55,7 +56,7 @@ export default function App() {
     return () => removeEventListener('popstate', onPop);
   }, []);
 
-  const go = (t, p = {}) => {
+  const go: Go = (t, p = {}) => {
     setParams(p);
     setTab(t);
     history.pushState(null, '', `?tab=${t}`);

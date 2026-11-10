@@ -5,12 +5,22 @@ import {
 } from 'lucide-react';
 import { Field, DateInput, GameSelect, DataTable, useDemo } from '../ui';
 import { GAMES, MARKETS, USERS, prettyDate, inr } from '../data';
+import type { Go } from '../types';
 
 const ANK_COLORS = ['#556ee6', '#34c38f', '#50a5f1', '#f7b924', '#a855f7', '#f1673e', '#e83e8c', '#6f42c1', '#e53946', '#20c997'];
 
-const DEPOSITS = []; // { user, amount, utr, req, date, status }
+interface Deposit {
+  user: string;
+  amount: number;
+  utr: string;
+  req: string;
+  date: string;
+  status: string;
+}
 
-export default function Dashboard({ go }) {
+const DEPOSITS: Deposit[] = [];
+
+export default function Dashboard({ go }: { go: Go }) {
   const demo = useDemo();
   const [q, setQ] = useState('');
   const approved = USERS.filter((u) => u.approved).length;

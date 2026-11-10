@@ -1,11 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import type { Go } from './types';
 import {
   Home, Users, Share2, Target, FileText, Wallet, Gamepad2, Sparkles, Zap, Settings,
   ChevronRight, ChevronDown, Menu, Maximize, Minimize, User, Lock, LogOut, Dices,
 } from 'lucide-react';
 import { APP_NAME } from './data';
 
-export const MENU = [
+export interface MenuChild {
+  label: string;
+  tab: string;
+}
+
+export interface MenuItem {
+  label: string;
+  icon: LucideIcon;
+  tab?: string;
+  children?: MenuChild[];
+}
+
+export const MENU: MenuItem[] = [
   { label: 'Dashboards', icon: Home, tab: 'dashboards' },
   { label: 'User Management', icon: Users, tab: 'user_management' },
   { label: 'Referral Report', icon: Share2, tab: 'referrals' },
@@ -58,10 +72,17 @@ export const MENU = [
   },
 ];
 
-const groupOf = (tab) => MENU.find((m) => m.children?.some((c) => c.tab === tab))?.label;
+const groupOf = (tab: string) => MENU.find((m) => m.children?.some((c) => c.tab === tab))?.label;
 
-export default function Layout({ tab, go, onLogout, children }) {
-  const [open, setOpen] = useState(() => new Set([groupOf(tab)].filter(Boolean)));
+interface LayoutProps {
+  tab: string;
+  go: Go;
+  onLogout: () => void;
+  children?: ReactNode;
+}
+
+export default function Layout({ tab, go, onLogout, children }: LayoutProps) {
+  const [open, setOpen] = useState(() => new Set([groupOf(tab)].filter((g): g is string => !!g)));
   const [mini, setMini] = useState(window.innerWidth < 900);
   const [menu, setMenu] = useState(false);
   const [full, setFull] = useState(false);
@@ -76,14 +97,14 @@ export default function Layout({ tab, go, onLogout, children }) {
     return () => document.removeEventListener('fullscreenchange', f);
   }, []);
 
-  const toggle = (label) => setOpen((s) => {
+  const toggle = (label: string) => setOpen((s) => {
     const n = new Set(s);
     n.has(label) ? n.delete(label) : n.add(label);
     return n;
   });
-  const nav = (t) => { go(t); if (window.innerWidth < 900) setMini(true); };
+  const nav = (t: string) => { go(t); if (window.innerWidth < 900) setMini(true); };
   // In mini mode a group icon expands the sidebar so its sub-menu is visible.
-  const clickGroup = (label) => {
+  const clickGroup = (label: string) => {
     if (mini) { setMini(false); setOpen((s) => new Set(s).add(label)); } else toggle(label);
   };
   const fullscreen = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
@@ -99,10 +120,10 @@ export default function Layout({ tab, go, onLogout, children }) {
           {MENU.map((m) => {
             const Icon = m.icon;
             const isOpen = open.has(m.label);
-            const active = m.tab ? m.tab === tab : m.children.some((c) => c.tab === tab);
+            const active = m.tab ? m.tab === tab : !!m.children?.some((c) => c.tab === tab);
             return (
               <div key={m.label}>
-                <div className={'nav-item' + (active ? ' active' : '')} title={mini ? m.label : undefined} onClick={() => (m.children ? clickGroup(m.label) : nav(m.tab))}>
+                <div className={'nav-item' + (active ? ' active' : '')} title={mini ? m.label : undefined} onClick={() => (m.children ? clickGroup(m.label) : nav(m.tab as string))}>
                   <div className="left"><Icon size={18} /><span className="label">{m.label}</span></div>
                   {m.children && (isOpen ? <ChevronDown size={16} className="chev" /> : <ChevronRight size={16} className="chev" />)}
                 </div>

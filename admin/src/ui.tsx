@@ -1,12 +1,14 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { X, CheckCircle2, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 import { MARKETS, today } from './data';
 
-const ToastCtx = createContext(() => {});
+type ToastFn = (msg: string | null) => void;
+
+const ToastCtx = createContext<ToastFn>(() => {});
 export const useToast = () => useContext(ToastCtx);
 
-export function ToastProvider({ children }) {
-  const [msg, setMsg] = useState(null);
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => {
     if (!msg) return;
     const t = setTimeout(() => setMsg(null), 2200);
@@ -26,7 +28,7 @@ export const useDemo = () => {
   return (label = 'Saved') => () => toast(`${label} (demo — no backend connected)`);
 };
 
-export function PageHeader({ title, trail, current }) {
+export function PageHeader({ title, trail, current }: { title: string; trail: ReactNode; current: ReactNode }) {
   return (
     <div className="page-head">
       <h4>{title}</h4>
@@ -35,7 +37,16 @@ export function PageHeader({ title, trail, current }) {
   );
 }
 
-export const Card = ({ title, sub, right, children, style, className = '' }) => (
+interface CardProps {
+  title?: ReactNode;
+  sub?: ReactNode;
+  right?: ReactNode;
+  children?: ReactNode;
+  style?: CSSProperties;
+  className?: string;
+}
+
+export const Card = ({ title, sub, right, children, style, className = '' }: CardProps) => (
   <div className={'card ' + className} style={style}>
     {(title || right) && (
       <div className="card-head">
@@ -50,19 +61,19 @@ export const Card = ({ title, sub, right, children, style, className = '' }) => 
   </div>
 );
 
-export const Field = ({ label, children, style }) => (
+export const Field = ({ label, children, style }: { label?: ReactNode; children?: ReactNode; style?: CSSProperties }) => (
   <div className="field" style={style}>
     {label && <label>{label}</label>}
     {children}
   </div>
 );
 
-export const DateInput = (props) => {
+export const DateInput = (props: { empty?: boolean }) => {
   const [v, setV] = useState(props.empty ? '' : today());
   return <input type="date" className="input" value={v} onChange={(e) => setV(e.target.value)} />;
 };
 
-export function GameSelect({ allLabel = 'All Games', placeholder, includeAll = true }) {
+export function GameSelect({ allLabel = 'All Games', placeholder, includeAll = true }: { allLabel?: string; placeholder?: string; includeAll?: boolean }) {
   return (
     <select className="select" defaultValue="">
       {placeholder && <option value="">{placeholder}</option>}
@@ -72,15 +83,35 @@ export function GameSelect({ allLabel = 'All Games', placeholder, includeAll = t
   );
 }
 
-export const SearchBox = ({ placeholder = 'Search...', value, onChange, width = 260, icon = false }) => (
+interface SearchBoxProps {
+  placeholder?: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  width?: number | string;
+  icon?: boolean;
+}
+
+export const SearchBox = ({ placeholder = 'Search...', value, onChange, width = 260, icon = false }: SearchBoxProps) => (
   <div className={icon ? 'search' : ''} style={{ width, maxWidth: '100%' }}>
     {icon && <Search size={15} />}
     <input className="input" placeholder={placeholder} value={value} onChange={(e) => onChange?.(e.target.value)} />
   </div>
 );
 
-/** columns: [{ h, r: row => node }] */
-export function DataTable({ columns, rows, empty = 'No Data Found!', head = 'light', upper = false }) {
+export interface Column<T> {
+  h: ReactNode;
+  r?: (row: T, index: number) => ReactNode;
+}
+
+interface DataTableProps<T> {
+  columns: Column<T>[];
+  rows: T[];
+  empty?: string;
+  head?: string;
+  upper?: boolean;
+}
+
+export function DataTable<T>({ columns, rows, empty = 'No Data Found!', head = 'light', upper = false }: DataTableProps<T>) {
   return (
     <div className="table-wrap">
       <table>
@@ -92,7 +123,7 @@ export function DataTable({ columns, rows, empty = 'No Data Found!', head = 'lig
             <tr><td className="empty" colSpan={columns.length}>{empty}</td></tr>
           ) : (
             rows.map((row, ri) => (
-              <tr key={ri}>{columns.map((c, ci) => <td key={ci}>{c.r(row, ri)}</td>)}</tr>
+              <tr key={ri}>{columns.map((c, ci) => <td key={ci}>{c.r?.(row, ri)}</td>)}</tr>
             ))
           )}
         </tbody>
@@ -101,7 +132,7 @@ export function DataTable({ columns, rows, empty = 'No Data Found!', head = 'lig
   );
 }
 
-export function Pager({ total }) {
+export function Pager({ total }: { total: number }) {
   return (
     <div className="pager">
       <div>Showing {total ? 1 : 0} to {total} of {total} entries</div>
@@ -118,10 +149,18 @@ export function Pager({ total }) {
   );
 }
 
-export function Modal({ title, onClose, children, footer, width }) {
+interface ModalProps {
+  title: ReactNode;
+  onClose: () => void;
+  children?: ReactNode;
+  footer?: ReactNode;
+  width?: number | string;
+}
+
+export function Modal({ title, onClose, children, footer, width }: ModalProps) {
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" style={width ? { maxWidth: width } : null} onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={width ? { maxWidth: width } : undefined} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h5>{title}</h5>
           <button className="icon-btn ghost" onClick={onClose} style={{ width: 30, height: 30 }}><X size={20} /></button>
@@ -133,4 +172,4 @@ export function Modal({ title, onClose, children, footer, width }) {
   );
 }
 
-export const YesNo = ({ v }) => <span className={'badge ' + (v ? 'yes' : 'no')}>{v ? 'Yes' : 'No'}</span>;
+export const YesNo = ({ v }: { v: unknown }) => <span className={'badge ' + (v ? 'yes' : 'no')}>{v ? 'Yes' : 'No'}</span>;

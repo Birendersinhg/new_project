@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { PageHeader, Card, Field, DateInput, DataTable, Modal, useDemo, YesNo } from '../ui';
-import { GAMES, MARKETS, ALL_PANAS, panaAnk } from '../data';
+import { GAMES, MARKETS, ALL_PANAS, panaAnk, type Game } from '../data';
 
 export function DeclareResult() {
   const demo = useDemo();
@@ -59,7 +59,7 @@ export function DeclareResult() {
 export function GameNames() {
   const demo = useDemo();
   const [q, setQ] = useState('');
-  const [modal, setModal] = useState(null);
+  const [modal, setModal] = useState<Partial<Game> | null>(null);
   const rows = GAMES.filter((g) => g.name.toLowerCase().includes(q.toLowerCase()));
 
   return (

@@ -3,7 +3,17 @@ import { FileText, Search, Link2, Eye } from 'lucide-react';
 import { PageHeader, Card, Field, DateInput, DataTable, Pager, Modal, useDemo } from '../ui';
 import { MARKETS, USERS } from '../data';
 
-const FUND_REQUESTS = []; // { name, phone, amount, points, receipt, date, status }
+interface FundRequestRow {
+  name: string;
+  phone: string;
+  amount: number;
+  points: number;
+  receipt: string;
+  date: string;
+  status: string;
+}
+
+const FUND_REQUESTS: FundRequestRow[] = [];
 
 export function FundRequest() {
   const demo = useDemo();
@@ -51,11 +61,21 @@ export function FundRequest() {
   );
 }
 
-const WITHDRAWALS = []; // { name, phone, bank, amount, req, date, status }
+interface WithdrawalRow {
+  name: string;
+  phone: string;
+  bank: string;
+  amount: number;
+  req: string;
+  date: string;
+  status: string;
+}
+
+const WITHDRAWALS: WithdrawalRow[] = [];
 
 export function WithdrawRequest() {
   const demo = useDemo();
-  const [view, setView] = useState(null);
+  const [view, setView] = useState<WithdrawalRow | null>(null);
   return (
     <>
       <PageHeader title="Withdraw Request Management" trail="Wallet Management" current="Withdraw Request" />

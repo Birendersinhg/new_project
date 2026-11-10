@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { ArrowLeft, User, KeyRound, Eye, EyeOff, Coins, Plus, Minus, Landmark, CreditCard, Dices, Trophy, Users as UsersIcon, Check, Ban, Lock } from 'lucide-react';
 import { PageHeader, Card, DataTable, YesNo, useDemo, Field } from '../ui';
-import { USERS, WALLET_HISTORY, BID_HISTORY, WIN_HISTORY } from '../data';
+import { USERS, WALLET_HISTORY, BID_HISTORY, WIN_HISTORY, type User as UserRecord } from '../data';
+import type { Go, PageParams } from '../types';
 
-export function UserList({ go }) {
+export function UserList({ go }: { go: Go }) {
   const [q, setQ] = useState('');
   const [unapproved, setUnapproved] = useState(false);
   const rows = USERS
@@ -43,12 +44,12 @@ export function UserList({ go }) {
   );
 }
 
-const EMPTY_USER = { id: '', name: '-', mobile: '-', email: '-', date: '-', balance: 0, betting: false, transfer: false, active: false, ref: '-', mpin: '-' };
+const EMPTY_USER: UserRecord = { id: 0, approved: false, name: '-', mobile: '-', email: '-', date: '-', balance: 0, betting: false, transfer: false, active: false, ref: '-', mpin: '-' };
 
-export function UserDetails({ go, params }) {
+export function UserDetails({ go, params }: { go: Go; params: PageParams }) {
   const demo = useDemo();
-  const [id, setId] = useState(params.id || USERS[0]?.id || '');
-  const user = USERS.find((u) => u.id === +id) || USERS[0] || EMPTY_USER;
+  const [id, setId] = useState<number>(params.id ?? USERS[0]?.id ?? 0);
+  const user = USERS.find((u) => u.id === id) || USERS[0] || EMPTY_USER;
   const [showPw, setShowPw] = useState(false);
   const [op, setOp] = useState('add');
   const [perm, setPerm] = useState({ active: user.active, betting: user.betting, transfer: user.transfer });
@@ -66,7 +67,7 @@ export function UserDetails({ go, params }) {
       <div className="page-head">
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => go('user_management')}><ArrowLeft size={15} /> Back to User List</button>
-          <select className="select" style={{ width: 200 }} value={user.id} onChange={(e) => setId(e.target.value)}>
+          <select className="select" style={{ width: 200 }} value={user.id} onChange={(e) => setId(Number(e.target.value))}>
             {USERS.length === 0 && <option value="">-- No Users --</option>}
             {USERS.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.mobile})</option>)}
           </select>
