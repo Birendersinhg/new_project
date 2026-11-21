@@ -1,16 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Menu, Bell, Wallet, PlayCircle, Phone, BarChart3, Play, X,
   Gavel, ScrollText, Home, Headphones,
 } from 'lucide-react';
-import { MARKETS, isRunning, type Market } from './data';
+import { isRunning, resultText, type Market } from './data';
+import { api, getToken, setToken, setUnauthorizedHandler, type Me, type PublicSettings } from './api';
+import { AppDataContext, useAppData, type AppData } from './appdata';
 import type { Go, LucideIcon, View } from './types';
 import Auth from './Auth';
 import Drawer from './Drawer';
 import {
   BidsScreen, FundsScreen, MoneyScreen, NotificationsScreen, PlaceholderScreen, SupportModal,
 } from './screens';
-import { getUsers, getSession, setSession, clearSession } from './storage';
+import { GameTypesScreen, ClosedModal } from './games';
+import { GameRateScreen, TimeTableScreen } from './rates';
+import { SettingsScreen } from './settings';
+import { GamePlayScreen } from './play';
+import { BidHistoryScreen } from './history';
+import { Banner, HowToPlayScreen, NoticeScreen, telLink } from './content';
+import {
+  ChartHubScreen, ChartMarketsScreen, JodiChartScreen, PanelChartScreen, StarlineChartScreen, DisawarChartScreen,
+} from './charts';
 
 const NAV: { id: string; label: string; icon: LucideIcon }[] = [
   { id: 'bids', label: 'Bids', icon: Gavel },
@@ -20,21 +30,26 @@ const NAV: { id: string; label: string; icon: LucideIcon }[] = [
   { id: 'support', label: 'Support', icon: Headphones },
 ];
 
-const TICKER = 'PLAY FOR FUN - FREE POINTS ONLY, NO REAL MONEY';
+interface MarketCardProps {
+  market: Market;
+  running: boolean;
+  onOpen: () => void;
+  onChart: () => void;
+}
 
-function MarketCard({ market, running }: { market: Market; running: boolean }) {
+function MarketCard({ market, running, onOpen, onChart }: MarketCardProps) {
   return (
-    <div className="card">
+    <div className="card" onClick={onOpen}>
       <div className="card-info">
         <h3>{market.name}</h3>
-        <div className="result">{market.result}</div>
+        <div className="result">{resultText(market)}</div>
         <div className="times">
           <div><span>Open Bids</span><b>{market.open}</b></div>
           <div><span>Close Bids</span><b>{market.close}</b></div>
         </div>
       </div>
       <div className="card-actions">
-        <button className="round chart" aria-label="Chart"><BarChart3 size={26} /></button>
+        <button className="round chart" aria-label="Chart" onClick={(e) => { e.stopPropagation(); onChart(); }}><BarChart3 size={26} /></button>
         <span className="label chart-label">Chart</span>
       </div>
       <div className="card-actions">
@@ -55,9 +70,12 @@ interface HomeScreenProps {
   go: Go;
   onMenu: () => void;
   onSupport: () => void;
+  onMarket: (market: Market) => void;
+  onChart: (market: Market) => void;
 }
 
-function HomeScreen({ now, balance, go, onMenu, onSupport }: HomeScreenProps) {
+function HomeScreen({ now, balance, go, onMenu, onSupport, onMarket, onChart }: HomeScreenProps) {
+  const { markets, settings } = useAppData();
   return (
     <div className="phone">
       <header className="header">
@@ -68,21 +86,22 @@ function HomeScreen({ now, balance, go, onMenu, onSupport }: HomeScreenProps) {
       </header>
       <div className="ticker">
         <div className="ticker-track">
-          {[0, 1].map((i) => <span key={i}>{TICKER}&nbsp;&nbsp;-&nbsp;&nbsp;</span>)}
+          {[0, 1].map((i) => <span key={i}>{settings.ticker}&nbsp;&nbsp;-&nbsp;&nbsp;</span>)}
         </div>
       </div>
 
+      <Banner />
       <div className="top-actions">
         <button className="pill-btn"><PlayCircle size={30} /> STARLINE</button>
         <button className="pill-btn bright"><PlayCircle size={30} /> JACKPOT</button>
       </div>
       <div className="contact">
-        <span className="call"><Phone size={20} fill="#fff" /></span>
-        <span className="number">+91 00000 00000</span>
+        <a className="call" href={telLink(settings.phone) || undefined} aria-label="Call"><Phone size={20} fill="#fff" /></a>
+        <a className="number" href={telLink(settings.phone) || undefined}>{settings.phone}</a>
         <button className="deposit" onClick={() => go('addmoney')}><Wallet size={22} /> Deposit</button>
       </div>
       <div className="list">
-        {MARKETS.map((m) => <MarketCard key={m.id} market={m} running={isRunning(m, now)} />)}
+        {markets.map((m) => <MarketCard key={m.id} market={m} running={isRunning(m, now)} onOpen={() => onMarket(m)} onChart={() => onChart(m)} />)}
         <div className="list-end" />
       </div>
 
@@ -103,52 +122,128 @@ function HomeScreen({ now, balance, go, onMenu, onSupport }: HomeScreenProps) {
 }
 
 export default function App() {
-  const [mobile, setMobile] = useState(() => getSession());
+  const [token, setTokenState] = useState(getToken);
+  const [me, setMe] = useState<Me | null>(null);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
+  const [loadError, setLoadError] = useState('');
   const [view, setView] = useState<View>('home');
   const [drawer, setDrawer] = useState(false);
   const [support, setSupport] = useState(false);
-  const balance = 5;
+  const [market, setMarket] = useState<Market | null>(null);
+  const [closed, setClosed] = useState(false);
+  const [game, setGame] = useState('');
+  const [chartMarket, setChartMarket] = useState<Market | null>(null);
+  const [chartFrom, setChartFrom] = useState<'home' | 'chartmarkets'>('chartmarkets');
   const [now, setNow] = useState(new Date());
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(t);
+  const signOut = useCallback(() => {
+    setToken(null);
+    setTokenState(null);
+    setMe(null);
+    setDrawer(false);
+    setView('home');
+  }, []);
+  useEffect(() => setUnauthorizedHandler(signOut), [signOut]);
+
+  const refreshMe = useCallback(async () => setMe(await api<Me>('GET', '/me')), []);
+  // Markets, settings and balance come from the server; refreshed every 30s so admin changes show up.
+  const load = useCallback(async () => {
+    try {
+      const [m, s, u] = await Promise.all([
+        api<Market[]>('GET', '/markets'),
+        api<PublicSettings>('GET', '/settings'),
+        api<Me>('GET', '/me'),
+      ]);
+      setMarkets(m);
+      setSettings(s);
+      setMe(u);
+      setLoadError('');
+    } catch (err) {
+      setLoadError((err as Error).message);
+    }
   }, []);
 
-  const user = mobile && getUsers()[mobile];
-  // A session pointing at a user that no longer exists (cleared storage) falls back to the login page.
-  if (!user) {
-    return <Auth onAuthed={(m) => { setSession(m); setMobile(m); setView('home'); }} />;
+  useEffect(() => {
+    if (!token) return;
+    load();
+    const t = setInterval(() => { setNow(new Date()); load(); }, 30000);
+    return () => clearInterval(t);
+  }, [token, load]);
+
+  if (!token) {
+    return <Auth onAuthed={(t) => { setToken(t); setTokenState(t); setView('home'); }} />;
   }
+  if (!me || !settings) {
+    return (
+      <div className="phone"><div className="empty">
+        {loadError ? <><h3>Could not load</h3><p>{loadError}</p><button className="auth-btn" style={{ maxWidth: 220 }} onClick={load}>TRY AGAIN</button></> : <h3>Loading...</h3>}
+      </div></div>
+    );
+  }
+  const balance = me.balance;
+  const data: AppData = { me, markets, settings, refreshMe };
 
   const go: Go = (id) => { setDrawer(false); setView(id); window.scrollTo(0, 0); };
   const back = () => go('home');
-  const logout = () => { clearSession(); setMobile(null); setDrawer(false); setView('home'); };
+  // Game types only open while the market is running; otherwise show the closed popup.
+  const openMarket = (m: Market) => {
+    if (!isRunning(m)) return setClosed(true);
+    setMarket(m);
+    go('games');
+  };
+  const logout = () => { api('POST', '/auth/logout').catch(() => {}); signOut(); };
 
   let screen;
   switch (view) {
     case 'home':
-      screen = <HomeScreen now={now} balance={balance} go={go} onMenu={() => setDrawer(true)} onSupport={() => setSupport(true)} />;
+      screen = <HomeScreen now={now} balance={balance} go={go} onMenu={() => setDrawer(true)} onSupport={() => setSupport(true)} onMarket={openMarket}
+        onChart={(m) => { setChartMarket(m); setChartFrom('home'); go('panelchart'); }} />;
       break;
     case 'bids': screen = <BidsScreen onBack={back} onOpen={go} />; break;
     case 'funds': screen = <FundsScreen onBack={back} onOpen={go} />; break;
     case 'addmoney': screen = <MoneyScreen kind="add" balance={balance} onBack={back} />; break;
     case 'withdraw': screen = <MoneyScreen kind="withdraw" balance={balance} onBack={back} />; break;
+    case 'games':
+      screen = market ? <GameTypesScreen market={market} onBack={back} onPick={(g) => { setGame(g); go('play'); }} /> : null;
+      break;
+    case 'play':
+      screen = market ? <GamePlayScreen key={`${market.id}-${game}`} market={market} game={game} now={now} balance={balance} onBack={() => go('games')} onAddMoney={() => go('addmoney')} /> : null;
+      break;
+    case 'chart': screen = <ChartHubScreen onBack={back} onOpen={go} />; break;
+    case 'chartmarkets':
+      screen = <ChartMarketsScreen onBack={() => go('chart')} onPick={(m, t) => { setChartMarket(m); setChartFrom('chartmarkets'); go(t === 'jodi' ? 'jodichart' : 'panelchart'); }} />;
+      break;
+    case 'jodichart':
+      screen = chartMarket ? <JodiChartScreen market={chartMarket} now={now} onBack={() => go('chartmarkets')} /> : null;
+      break;
+    case 'panelchart':
+      screen = chartMarket ? <PanelChartScreen market={chartMarket} now={now} onBack={() => go(chartFrom)} /> : null;
+      break;
+    case 'starlinechart': screen = <StarlineChartScreen now={now} onBack={() => go('chart')} />; break;
+    case 'disawarchart': screen = <DisawarChartScreen now={now} onBack={() => go('chart')} />; break;
+    case 'gamerate': screen = <GameRateScreen onBack={back} />; break;
+    case 'timetable': screen = <TimeTableScreen onBack={back} />; break;
+    case 'settings': screen = <SettingsScreen onBack={back} />; break;
+    case 'Bid History': screen = <BidHistoryScreen onBack={() => go('bids')} />; break;
+    case 'howtoplay': screen = <HowToPlayScreen onBack={back} />; break;
+    case 'notice': screen = <NoticeScreen onBack={back} />; break;
     case 'notifications': screen = <NotificationsScreen onBack={back} />; break;
     default: screen = <PlaceholderScreen title={view === 'passbook' ? 'Passbook' : view} onBack={back} />;
   }
 
   return (
-    <>
+    <AppDataContext.Provider value={data}>
       {screen}
       <Drawer
         open={drawer}
-        user={{ name: user.name, mobile }}
+        user={{ name: me.name, mobile: me.mobile }}
         onClose={() => setDrawer(false)}
         onNavigate={go}
         onLogout={logout}
       />
       {support && <SupportModal onClose={() => setSupport(false)} />}
-    </>
+      {closed && <ClosedModal onClose={() => setClosed(false)} />}
+    </AppDataContext.Provider>
   );
 }

@@ -99,3 +99,32 @@
 .otp-row { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
 .otp-box { width: 100%; min-width: 0; aspect-ratio: 1; max-width: 52px; text-align: center; border: 1.5px solid #e2dede; border-radius: 12px; font: inherit; font-size: 22px; font-weight: 700; outline: 0; }
 .otp-box:focus { border-color: #e11; }
+
+/* Bid history */
+.bh-row { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: #fff; border-radius: 18px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.bh-top, .bh-mid, .bh-bot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.bh-top b { font-size: 16px; text-transform: uppercase; }
+.bh-mid { color: #555; font-size: 14px; font-weight: 500; }
+.bh-num { font-family: 'Roboto Mono', monospace; font-weight: 700; font-size: 18px; color: #c62828; letter-spacing: 1px; }
+.bh-bot { color: #999; font-size: 13px; }
+.bh-bot span:last-child { color: #222; font-weight: 700; font-size: 15px; }
+.bh-status { padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+.bh-status.pending { background: #fff3e0; color: #ef6c00; }
+.bh-status.won { background: #e8f5e9; color: #2e7d32; }
+.bh-status.lost { background: #fdecea; color: #c62828; }
+
+/* Admin-written text screens */
+.info-text { padding: 20px; background: #fff; border-radius: 18px; white-space: pre-wrap; line-height: 1.7; font-size: 15px; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+
+/* Home banner (admin slider images) */
+.banner { position: relative; margin: 4px 12px 10px; border-radius: 18px; overflow: hidden; aspect-ratio: 2 / 1; background: #eee; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+.banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.banner-dots { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 4px 8px; border-radius: 20px; background: rgba(0,0,0,.35); }
+.banner-dots button { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.6); }
+.banner-dots button.on { width: 20px; border-radius: 6px; background: #fff; }
+
+a.call, a.number, a.modal-row { text-decoration: none; color: inherit; }
+.modal-row .na { display: block; font-size: 12px; font-weight: 500; color: #aaa; }
+.modal-row:disabled { opacity: .7; cursor: default; }
+.query-card a { display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 14px; text-decoration: none; }
+.bh-status.reverted { background: #eceff1; color: #546e7a; }

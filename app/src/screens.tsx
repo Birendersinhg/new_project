@@ -1,9 +1,11 @@
 import { useState, type ReactNode, type FormEvent } from 'react';
 import {
-  ChevronLeft, ChevronRight, RotateCw, Bell, Wallet, Gavel, Receipt, Trophy,
-  Sparkles, Award, Wine, History, Headphones, MessageSquareText, X, Hammer, Banknote, CreditCard, Phone, IndianRupee,
+  ChevronLeft, ChevronRight, RotateCw, Bell, Wallet, Gavel, Receipt,
+  Sparkles, Award, History, Headphones, MessageSquareText, X, Hammer, Banknote, CreditCard, Phone, IndianRupee,
 } from 'lucide-react';
 import type { Go, LucideIcon } from './types';
+import { useAppData } from './appdata';
+import { telLink, whatsappLink } from './content';
 
 interface PageHeaderProps {
   title: string;
@@ -53,11 +55,8 @@ interface ScreenNavProps {
 export function BidsScreen({ onBack, onOpen }: ScreenNavProps) {
   const items: [LucideIcon, string, string, string, string, string][] = [
     [Receipt, 'Bid History', 'Complete record of all your placed bids', '#2f8be6', '#1565c0', '#e8f1fc'],
-    [Trophy, 'Game Results', 'Latest market results and winning numbers', '#43a047', '#2e7d32', '#e8f5e9'],
     [Sparkles, 'Starline Bid History', 'Your starline game bids and details', '#9c27b0', '#6a1b9a', '#f3e5f5'],
-    [Sparkles, 'Starline Result History', 'Past starline game results over time', '#00897b', '#00695c', '#e0f2f1'],
     [Award, 'Disawar Bid History', 'All your Disawar plays in one place', '#ffa726', '#ef6c00', '#fff3e0'],
-    [Wine, 'Disawar Result History', 'Past Disawar results and winners', '#ef5350', '#c62828', '#fdecea'],
   ];
   return (
     <div className="phone sub">
@@ -94,6 +93,7 @@ interface MoneyScreenProps {
 }
 
 export function MoneyScreen({ kind, balance, onBack }: MoneyScreenProps) {
+  const { settings } = useAppData();
   const isAdd = kind === 'add';
   const [amount, setAmount] = useState('');
   const [msg, setMsg] = useState('');
@@ -119,8 +119,8 @@ export function MoneyScreen({ kind, balance, onBack }: MoneyScreenProps) {
         <div className="query-card">
           <Headphones size={26} />
           <span>For Query&apos;s please contact</span>
-          <button className="q-call"><Phone size={16} /> Call</button>
-          <button className="q-wa"><MessageSquareText size={16} /> WhatsApp</button>
+          <a className="q-call" href={telLink(settings.phone) || undefined}><Phone size={16} /> Call</a>
+          <a className="q-wa" href={whatsappLink(settings.whatsapp) || undefined} target="_blank" rel="noreferrer"><MessageSquareText size={16} /> WhatsApp</a>
         </div>
         <div className="quick-row">
           {quick.map((q) => <button key={q} onClick={() => { setMsg(''); setAmount(String(q)); }}>₹{q}</button>)}
@@ -160,7 +160,19 @@ export function PlaceholderScreen({ title, onBack }: { title: string; onBack: ()
   );
 }
 
+/** Opens the admin's phone/WhatsApp; shows "Not available" when the admin hasn't set that number. */
+function ContactRow({ href, className, label }: { href: string; className: string; label: string }) {
+  const inner = <>
+    <span className={`modal-icon ${className}`}><MessageSquareText size={28} /></span>
+    <b>{label}{!href && <small className="na">Not available</small>}</b><ChevronRight size={22} />
+  </>;
+  return href
+    ? <a className="modal-row" href={href} target="_blank" rel="noreferrer">{inner}</a>
+    : <button className="modal-row" disabled>{inner}</button>;
+}
+
 export function SupportModal({ onClose }: { onClose: () => void }) {
+  const { settings } = useAppData();
   return (
     <div className="overlay center" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -169,14 +181,8 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
           <h3>Support Center</h3>
           <button className="modal-x" onClick={onClose} aria-label="Close"><X size={22} /></button>
         </div>
-        <button className="modal-row">
-          <span className="modal-icon live"><MessageSquareText size={28} /></span>
-          <b>Live Chat</b><ChevronRight size={22} />
-        </button>
-        <button className="modal-row">
-          <span className="modal-icon wa"><MessageSquareText size={28} /></span>
-          <b>WhatsApp Support</b><ChevronRight size={22} />
-        </button>
+        <ContactRow href={telLink(settings.phone)} className="live" label="Live Chat" />
+        <ContactRow href={whatsappLink(settings.whatsapp)} className="wa" label="WhatsApp Support" />
       </div>
     </div>
   );

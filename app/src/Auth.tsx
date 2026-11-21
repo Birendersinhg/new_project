@@ -1,9 +1,7 @@
-import { useRef, useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react';
 import { User, Phone, Lock, ArrowLeft } from 'lucide-react';
 import type { LucideIcon } from './types';
-import { getUsers, saveUser, hashPassword } from './storage';
-
-const DEMO_OTP = '123456';
+import { api } from './api';
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & { icon: LucideIcon };
 
@@ -46,56 +44,82 @@ function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) =>
   );
 }
 
+const RESEND_SECONDS = 30;
+
 type Mode = 'register' | 'login';
 type Step = 'details' | 'otp' | 'password';
 
-export default function Auth({ onAuthed }: { onAuthed: (mobile: string) => void }) {
+export default function Auth({ onAuthed }: { onAuthed: (token: string) => void }) {
   const [mode, setMode] = useState<Mode>('register');
   const [step, setStep] = useState<Step>('details');
   const [form, setForm] = useState({ name: '', mobile: '', otp: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [demoOtp, setDemoOtp] = useState('');
+  const [ticket, setTicket] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+
+  // Counts down the "Resend OTP" wait (the server also blocks resends for 30 seconds).
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   const update = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) => { setError(''); setForm({ ...form, [k]: e.target.value }); };
   const mobileOk = /^[6-9]\d{9}$/.test(form.mobile);
 
   const switchMode = (m: Mode) => { setMode(m); setStep('details'); setError(''); setForm({ ...form, otp: '', password: '', confirm: '' }); };
 
+  // Shows the server's error message instead of throwing.
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError('');
+    try { await fn(); } catch (err) { setError((err as Error).message); }
+    setBusy(false);
+  };
+
+  const requestOtp = () => run(async () => {
+    const r = await api<{ demoOtp?: string }>('POST', '/auth/otp', { name: form.name.trim(), mobile: form.mobile });
+    setDemoOtp(r.demoOtp ?? '');
+    setForm((f) => ({ ...f, otp: '' }));
+    setResendIn(RESEND_SECONDS);
+    setStep('otp');
+  });
+
   const sendOtp = (e: FormEvent) => {
     e.preventDefault();
     if (form.name.trim().length < 2) return setError('Please enter your name');
     if (!mobileOk) return setError('Enter a valid 10-digit mobile number');
-    if (getUsers()[form.mobile]) return setError('This number is already registered. Please login.');
-    setStep('otp');
+    requestOtp();
   };
 
   const verifyOtp = (e: FormEvent) => {
     e.preventDefault();
-    if (form.otp !== DEMO_OTP) return setError('Wrong OTP. Please try again.');
-    setError('');
-    setStep('password');
+    run(async () => {
+      const r = await api<{ ticket: string }>('POST', '/auth/verify', { mobile: form.mobile, otp: form.otp });
+      setTicket(r.ticket);
+      setStep('password');
+    });
   };
 
-  const createAccount = async (e: FormEvent) => {
+  const createAccount = (e: FormEvent) => {
     e.preventDefault();
     if (form.password.length < 6) return setError('Password must be at least 6 characters');
     if (form.password !== form.confirm) return setError('Passwords do not match');
-    setBusy(true);
-    const hash = await hashPassword(form.mobile, form.password);
-    saveUser(form.mobile, { name: form.name.trim(), hash });
-    setBusy(false);
-    onAuthed(form.mobile);
+    run(async () => {
+      const r = await api<{ token: string }>('POST', '/auth/register', { ticket, password: form.password });
+      onAuthed(r.token);
+    });
   };
 
-  const login = async (e: FormEvent) => {
+  const login = (e: FormEvent) => {
     e.preventDefault();
     if (!mobileOk) return setError('Enter a valid 10-digit mobile number');
-    const user = getUsers()[form.mobile];
-    setBusy(true);
-    const hash = await hashPassword(form.mobile, form.password);
-    setBusy(false);
-    if (!user || user.hash !== hash) return setError('Incorrect mobile number or password');
-    onAuthed(form.mobile);
+    run(async () => {
+      const r = await api<{ token: string }>('POST', '/auth/login', { mobile: form.mobile, password: form.password });
+      onAuthed(r.token);
+    });
   };
 
   const titles: Record<'login' | Step, [string, string]> = {
@@ -136,16 +160,22 @@ export default function Auth({ onAuthed }: { onAuthed: (mobile: string) => void 
             <Field icon={User} type="text" placeholder="Enter your name" value={form.name} onChange={update('name')} />
             <Field icon={Phone} type="tel" inputMode="numeric" maxLength={10} placeholder="Mobile number" value={form.mobile} onChange={update('mobile')} />
             {error && <div className="auth-error">{error}</div>}
-            <button className="auth-btn">SEND OTP</button>
+            <button className="auth-btn" disabled={busy}>SEND OTP</button>
           </form>
         )}
 
         {mode === 'register' && step === 'otp' && (
           <form onSubmit={verifyOtp}>
             <OtpBoxes value={form.otp} onChange={(otp: string) => { setError(''); setForm({ ...form, otp }); }} />
-            <div className="auth-hint">Demo mode: no SMS is sent. Use OTP <b>{DEMO_OTP}</b>.</div>
+            {demoOtp && <div className="auth-hint">Test mode: no SMS is sent yet. Use OTP <b>{demoOtp}</b>.</div>}
             {error && <div className="auth-error">{error}</div>}
-            <button className="auth-btn" disabled={form.otp.length < 6}>VERIFY OTP</button>
+            <button className="auth-btn" disabled={busy || form.otp.length < 6}>VERIFY OTP</button>
+            <div className="auth-switch" style={{ marginTop: 14 }}>
+              Didn&apos;t get it?{' '}
+              {resendIn > 0
+                ? <span>Resend in {resendIn}s</span>
+                : <button type="button" disabled={busy} onClick={requestOtp}>Resend OTP</button>}
+            </div>
           </form>
         )}
 
