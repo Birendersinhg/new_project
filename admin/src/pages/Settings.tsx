@@ -1,6 +1,38 @@
 import { useState } from 'react';
 import { Zap, Globe, Smartphone, PlayCircle, Gift, UserPlus, CreditCard, RefreshCw, Target, Dices, QrCode, Check } from 'lucide-react';
-import { PageHeader, Card, Field, DataTable, Modal, useDemo } from '../ui';
+import { PageHeader, Card, Field, DataTable, Modal, useDemo, useToast } from '../ui';
+import { api, useLoad, type AdminSettings, type Slider } from '../api';
+
+type TextSetting = Exclude<keyof AdminSettings, 'rates' | 'sliders'>;
+
+/** Settings that the app reads live from the server; edited here and saved with one PUT. */
+function useSettingsForm() {
+  const toast = useToast();
+  const { data, error } = useLoad<AdminSettings>('/admin/settings');
+  const [edits, setEdits] = useState<Partial<Record<TextSetting, string>>>({});
+  const value = (k: TextSetting) => edits[k] ?? data?.[k] ?? '';
+  const input = (k: TextSetting, numeric = false) => ({
+    value: value(k),
+    disabled: !data,
+    onChange: (e: { target: { value: string } }) => setEdits({ ...edits, [k]: numeric ? e.target.value.replace(/\D/g, '') : e.target.value }),
+  });
+  const save = async (keys: TextSetting[], done: string) => {
+    try {
+      await api('PUT', '/admin/settings', Object.fromEntries(keys.map((k) => [k, value(k)])));
+      toast(done);
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+  return { input, save, error };
+}
+
+// Labels in the "Add Value's" card that are connected to the app.
+const LIVE_VALUES: Record<string, TextSetting> = {
+  'Minimum Bid Amount': 'min_bid',
+  'Maximum Bid Amount': 'max_bid',
+  'Welcome Bonus': 'welcome_bonus',
+};
 
 export function AutoActive() {
   const demo = useDemo();
@@ -33,6 +65,7 @@ export function AutoActive() {
             <p>Frontend app displays an interactive Question &amp; Answer Quiz App for users instead of the gaming dashboard.</p>
           </div>
         </label>
+        <div className="hint" style={{ marginBottom: 12, color: 'var(--danger)' }}>Not connected to the app: the app does not switch to a different mode for some users.</div>
         <button className="btn" style={{ padding: '12px 28px', boxShadow: '0 4px 12px rgba(0,0,0,.15)' }} onClick={demo('Auto active settings saved')}>Save Auto Active Settings</button>
       </Card>
     </>
@@ -56,10 +89,12 @@ export function MainSettings() {
   const [mpin, setMpin] = useState('off');
   const [slider, setSlider] = useState('on');
   const toggleDay = (d: string) => setDays((s) => { const n = new Set(s); n.has(d) ? n.delete(d) : n.add(d); return n; });
+  const settings = useSettingsForm();
 
   return (
     <>
       <PageHeader title="Main Settings" trail="Settings" current="Main Settings" />
+      <AdminPassword />
       <div className="grid-2" style={{ gap: 24 }}>
         <Card style={{ marginBottom: 0 }}>
           <h5 className="card-title">Add Bank Details</h5>
@@ -112,8 +147,20 @@ export function MainSettings() {
             'Minimum Deposite', 'Maximum Deposite', 'Minimum Withdrawal', 'Maximum Withdrawal',
             'Minimum Transfer', 'Maximum Transfer', 'Minimum Bid Amount', 'Maximum Bid Amount',
             'Welcome Bonus', 'Minimum Wallet Amount',
-          ].map((l) => <Field key={l} label={l}><input className="input" placeholder="Enter amount" /></Field>)}
-          <Field label="Alert Marquee Message"><input className="input" placeholder="Scrolling message for app users" /></Field>
+          ].map((l) => (
+            <Field key={l} label={l}>
+              {LIVE_VALUES[l]
+                ? <input className="input" inputMode="numeric" placeholder="Enter amount" {...settings.input(LIVE_VALUES[l], true)} />
+                : <input className="input" placeholder="Enter amount" />}
+            </Field>
+          ))}
+          <Field label="Alert Marquee Message"><input className="input" placeholder="Scrolling message for app users" {...settings.input('ticker')} /></Field>
+        </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '14px 0 4px', flexWrap: 'wrap' }}>
+          <button className="btn" onClick={() => settings.save(['min_bid', 'max_bid', 'welcome_bonus', 'ticker'], 'Saved. The app shows the new values within 30 seconds.')}>
+            Save App Values
+          </button>
+          <span className="hint" style={{ margin: 0 }}>{settings.error || 'Saves Minimum/Maximum Bid Amount, Welcome Bonus and Alert Marquee Message to the app.'}</span>
         </div>
 
         <div className="panel-left blue">
@@ -179,31 +226,67 @@ export function MainSettings() {
 }
 
 export function ContactSettings() {
-  const demo = useDemo();
+  const settings = useSettingsForm();
   const fields = ['Mobile Number', 'WhatsApp Number', 'Landline 1 (Optional)', 'Landline 2 (Optional)', 'Email 1', 'Email 2 (Optional)', 'Facebook (Optional)', 'Twitter (Optional)'];
+  const live: Record<string, TextSetting> = { 'Mobile Number': 'contact_phone', 'WhatsApp Number': 'whatsapp' };
   return (
     <>
       <PageHeader title="Contact Settings" trail="Settings" current="Contact Settings" />
       <Card style={{ maxWidth: 900 }}>
         <h5 className="card-title">Contact Settings</h5>
         <div className="grid-3">
-          {fields.map((f) => <Field key={f} label={f}><input className="input" placeholder={f.replace(' (Optional)', '')} /></Field>)}
+          {fields.map((f) => (
+            <Field key={f} label={f}>
+              <input className="input" placeholder={f.replace(' (Optional)', '')} {...(live[f] ? settings.input(live[f]) : {})} />
+            </Field>
+          ))}
         </div>
         <Field label="Address" style={{ marginTop: 16 }}><textarea className="textarea" placeholder="Business address" /></Field>
-        <button className="btn" style={{ marginTop: 22, padding: '10px 28px' }} onClick={demo('Contact settings saved')}>Submit</button>
+        <div className="hint" style={{ marginTop: 10 }}>{settings.error || 'Mobile Number is shown on the app home screen.'}</div>
+        <button className="btn" style={{ marginTop: 14, padding: '10px 28px' }} onClick={() => settings.save(['contact_phone', 'whatsapp'], 'Contact settings saved')}>Submit</button>
       </Card>
     </>
   );
 }
 
 export function SliderImages() {
-  const demo = useDemo();
+  const toast = useToast();
+  const { data, error, reload } = useLoad<AdminSettings>('/admin/settings');
   const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const [order, setOrder] = useState('1');
+  const sliders = data?.sliders ?? [];
+
+  const save = async (next: Slider[], done: string) => {
+    try {
+      await api('PUT', '/admin/settings', { sliders: next });
+      toast(done);
+      reload();
+      return true;
+    } catch (err) {
+      toast((err as Error).message);
+      return false;
+    }
+  };
+  const add = async () => {
+    if (await save([...sliders, { url: url.trim(), order: Number(order) || 1 }], 'Slider image added. It shows on the app home screen.')) {
+      setOpen(false);
+      setUrl('');
+      setOrder('1');
+    }
+  };
+
   return (
     <>
       <PageHeader title="Slider Image Management" trail="Settings" current="Slider Images" />
-      <Card title="Slider Images List" right={<button className="btn" onClick={() => setOpen(true)}>+ Add Slider Image</button>}>
-        <DataTable rows={[]} empty="No Data Found!" columns={['#', 'Slider Image', 'Display Order', 'Creation Date', 'Status', 'Action'].map((h) => ({ h }))} />
+      <Card title="Slider Images List" right={<button className="btn" disabled={!data} onClick={() => setOpen(true)}>+ Add Slider Image</button>}>
+        <DataTable rows={sliders} empty={error || (data ? 'No slider images yet. The app hides the banner until you add one.' : 'Loading...')} columns={[
+          { h: '#', r: (_, i) => i + 1 },
+          { h: 'Slider Image', r: (s) => <img src={s.url} alt="" style={{ width: 140, height: 70, objectFit: 'cover', borderRadius: 6 }} /> },
+          { h: 'Display Order', r: (s) => s.order },
+          { h: 'Link', r: (s) => <a href={s.url} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all' }}>{s.url}</a> },
+          { h: 'Action', r: (_, i) => <button className="btn danger xs" onClick={() => save(sliders.filter((_, j) => j !== i), 'Slider image removed')}>Delete</button> },
+        ]} />
       </Card>
       {open && (
         <Modal
@@ -212,14 +295,15 @@ export function SliderImages() {
           width={500}
           footer={<>
             <button className="btn secondary" onClick={() => setOpen(false)}>Cancel</button>
-            <button className="btn" onClick={() => { setOpen(false); demo('Slider image added')(); }}>Submit</button>
+            <button className="btn" onClick={add}>Submit</button>
           </>}
         >
-          <Field label="Select Slider Image File *" style={{ marginBottom: 14 }}>
-            <input type="file" className="input" accept="image/*" style={{ marginBottom: 8 }} />
-            <input className="input" placeholder="Or enter image URL / filename (e.g. banner.jpg)" />
+          <Field label="Image Link (https://...) *" style={{ marginBottom: 6 }}>
+            <input className="input" placeholder="https://example.com/banner.jpg" value={url} onChange={(e) => setUrl(e.target.value)} />
           </Field>
-          <Field label="Display Order"><input className="input" defaultValue="1" /></Field>
+          <div className="hint" style={{ marginBottom: 14 }}>Paste a public image link (wide images, about 2:1, look best). Image upload from your computer is not supported yet.</div>
+          {/^https?:\/\//.test(url) && <img src={url} alt="" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8, marginBottom: 14 }} />}
+          <Field label="Display Order"><input className="input" inputMode="numeric" value={order} onChange={(e) => setOrder(e.target.value.replace(/\D/g, ''))} /></Field>
         </Modal>
       )}
     </>
@@ -227,15 +311,50 @@ export function SliderImages() {
 }
 
 export function HowToPlay() {
-  const demo = useDemo();
+  const settings = useSettingsForm();
   return (
     <>
       <PageHeader title="How To Play" trail="Settings" current="How To Play" />
       <Card style={{ maxWidth: 850 }}>
         <h5 className="card-title">How To Play Content</h5>
-        <Field label="Instructions / Rules Content"><textarea className="textarea" style={{ minHeight: 200 }} placeholder="Write the game rules and instructions shown to users..." /></Field>
-        <button className="btn" style={{ marginTop: 22, padding: '10px 28px' }} onClick={demo('Content saved')}>Submit</button>
+        <Field label="Instructions / Rules Content (shown in the app under How To Play)">
+          <textarea className="textarea" style={{ minHeight: 200 }} placeholder="Write the game rules and instructions shown to users..." {...settings.input('how_to_play')} />
+        </Field>
+        <Field label="Notice Board / Rules (shown in the app under Notice board/ Rules)" style={{ marginTop: 18 }}>
+          <textarea className="textarea" style={{ minHeight: 140 }} placeholder="Announcements and rules for users..." {...settings.input('notice_board')} />
+        </Field>
+        <div className="hint" style={{ marginTop: 10 }}>{settings.error}</div>
+        <button className="btn" style={{ marginTop: 14, padding: '10px 28px' }} onClick={() => settings.save(['how_to_play', 'notice_board'], 'Saved. The app shows it within 30 seconds.')}>Submit</button>
       </Card>
     </>
+  );
+}
+
+/** Lets the logged-in admin change their own password. */
+function AdminPassword() {
+  const toast = useToast();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const submit = async () => {
+    if (next !== confirmPw) return toast('New passwords do not match');
+    try {
+      await api('POST', '/admin/password', { current, next });
+      toast('Admin password changed');
+      setCurrent('');
+      setNext('');
+      setConfirmPw('');
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+  return (
+    <Card style={{ marginBottom: 24, maxWidth: 520 }}>
+      <h5 className="card-title">Change Admin Password</h5>
+      <Field label="Current Password" style={{ marginBottom: 12 }}><input className="input" type="password" value={current} onChange={(e) => setCurrent(e.target.value)} /></Field>
+      <Field label="New Password (min 8 characters)" style={{ marginBottom: 12 }}><input className="input" type="password" value={next} onChange={(e) => setNext(e.target.value)} /></Field>
+      <Field label="Confirm New Password" style={{ marginBottom: 16 }}><input className="input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} /></Field>
+      <button className="btn" onClick={submit}>Change Password</button>
+    </Card>
   );
 }

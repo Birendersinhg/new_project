@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Link2 } from 'lucide-react';
+import { todayIso, useLoad, type AdminMarket, type BidReportRow } from '../api';
 import { PageHeader, Card, Field, DateInput, GameSelect, DataTable, useDemo } from '../ui';
 import { SINGLE_DIGITS, JODI_DIGITS, SINGLE_PANA, DOUBLE_PANA, TRIPLE_PANA, GAME_TYPES } from '../data';
 import type { Go } from '../types';
@@ -8,26 +10,50 @@ const TypeSelect = () => (
 );
 
 export function BidHistory() {
-  const demo = useDemo();
+  const { data: markets } = useLoad<AdminMarket[]>('/admin/markets');
+  const [date, setDate] = useState(todayIso);
+  const [marketId, setMarketId] = useState('');
+  const [type, setType] = useState('All');
+  const { data: bids, error } = useLoad<BidReportRow[]>(`/admin/bids?date=${date}${marketId ? `&marketId=${marketId}` : ''}`);
+  const rows = (bids ?? []).filter((b) => type === 'All' || b.game === type);
+  const total = rows.reduce((s, b) => s + b.points, 0);
   return (
     <>
       <PageHeader title="Bid History Report" trail="Report Management" current="Bid History" />
       <Card title="Filter Bids">
         <div className="row">
-          <Field label="Date"><DateInput /></Field>
-          <Field label="Game Name"><GameSelect /></Field>
-          <Field label="Game Type"><TypeSelect /></Field>
-          <div style={{ flex: 1, minWidth: 180 }}><button className="btn block" onClick={demo('Filtered')}>Submit</button></div>
+          <Field label="Date"><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label="Game Name">
+            <select className="select" value={marketId} onChange={(e) => setMarketId(e.target.value)}>
+              <option value="">All Games</option>
+              {markets?.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Game Type">
+            <select className="select" value={type} onChange={(e) => setType(e.target.value)}>
+              <option>All</option>{APP_GAMES.map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </Field>
         </div>
       </Card>
-      <Card title="Bid History List" right={<span style={{ fontSize: '.85rem', color: 'var(--muted)' }}>Total Bids: <b style={{ color: 'var(--heading)' }}>0</b></span>}>
-        <DataTable rows={[]} empty="No Bids Found for selected filters." columns={
-          ['Date', 'Username', 'Game Name', 'Game Type', 'Session', 'Open Pana', 'Open Result', 'Close Pana', 'Close Result', 'Points', 'Action'].map((h) => ({ h }))
-        } />
+      <Card title="Bid History List" right={<span style={{ fontSize: '.85rem', color: 'var(--muted)' }}>Total Bids: <b style={{ color: 'var(--heading)' }}>{rows.length}</b> · Points: <b style={{ color: 'var(--heading)' }}>{total}</b></span>}>
+        <DataTable rows={rows} empty={error || (bids ? 'No Bids Found for selected filters.' : 'Loading...')} columns={[
+          { h: 'Time', r: (b) => b.time },
+          { h: 'Username', r: (b) => <b>{b.user} <small style={{ color: 'var(--muted)' }}>{b.mobile}</small></b> },
+          { h: 'Game Name', r: (b) => b.market },
+          { h: 'Game Type', r: (b) => b.game },
+          { h: 'Session', r: (b) => b.session ?? '-' },
+          { h: 'Number', r: (b) => <b>{b.number}</b> },
+          { h: 'Points', r: (b) => b.points },
+          { h: 'Status', r: (b) => <span className={'badge ' + (b.status === 'won' ? 'success' : b.status === 'lost' ? 'danger' : '')}>{b.status}{b.status === 'won' ? ` ₹${b.win}` : ''}</span> },
+        ]} />
       </Card>
     </>
   );
 }
+
+// Game types the user app offers.
+const APP_GAMES = ['Single Digit', 'Jodi', 'Single Pana', 'Double Pana', 'Triple Pana', 'Half Sangam', 'Full Sangam', 'SP DP TP', 'SP MOTER', 'DP MOTER'];
 
 const SellSection = ({ title, items }: { title: string; items: string[] }) => (
   <Card>

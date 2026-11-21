@@ -4,7 +4,8 @@ import {
   Filter, Trophy, Wallet, Search, CheckCircle2,
 } from 'lucide-react';
 import { Field, DateInput, GameSelect, DataTable, useDemo } from '../ui';
-import { GAMES, MARKETS, USERS, prettyDate, inr } from '../data';
+import { prettyDate, inr } from '../data';
+import { useLoad, type AdminMarket, type Stats } from '../api';
 import type { Go } from '../types';
 
 const ANK_COLORS = ['#556ee6', '#34c38f', '#50a5f1', '#f7b924', '#a855f7', '#f1673e', '#e83e8c', '#6f42c1', '#e53946', '#20c997'];
@@ -23,7 +24,8 @@ const DEPOSITS: Deposit[] = [];
 export default function Dashboard({ go }: { go: Go }) {
   const demo = useDemo();
   const [q, setQ] = useState('');
-  const approved = USERS.filter((u) => u.approved).length;
+  const { data: stats, reload } = useLoad<Stats>('/admin/stats');
+  const { data: markets } = useLoad<AdminMarket[]>('/admin/markets');
   const rows = DEPOSITS.filter((d) => (d.user + d.utr + d.req).toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -37,7 +39,7 @@ export default function Dashboard({ go }: { go: Go }) {
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <span className="date-chip"><Calendar size={15} /> {prettyDate()}</span>
-          <button className="btn" onClick={demo('Refreshed')}><RefreshCw size={15} /> Refresh</button>
+          <button className="btn" onClick={reload}><RefreshCw size={15} /> Refresh</button>
         </div>
       </div>
 
@@ -63,10 +65,10 @@ export default function Dashboard({ go }: { go: Go }) {
               </div>
               <div className="mini-stats">
                 <div className="mini-stat red" style={{ cursor: 'pointer' }} onClick={() => go('user_management')}>
-                  <b><UserX size={16} /> {USERS.length - approved}</b>Unapproved Users
+                  <b><UserX size={16} /> {stats?.unapproved ?? '-'}</b>Unapproved Users
                 </div>
                 <div className="mini-stat green" style={{ cursor: 'pointer' }} onClick={() => go('user_management')}>
-                  <b><UserCheck size={16} /> {approved}</b>Approved Users
+                  <b><UserCheck size={16} /> {stats?.approved ?? '-'}</b>Approved Users
                 </div>
               </div>
             </div>
@@ -81,7 +83,7 @@ export default function Dashboard({ go }: { go: Go }) {
               <select className="select" defaultValue="">
                 <option value="">-- Select Game --</option>
                 <option>⭐ All Games Combined</option>
-                {MARKETS.map((m) => <option key={m}>{m}</option>)}
+                {markets?.map((m) => <option key={m.id}>{m.name}</option>)}
               </select>
             </Field>
             <div className="volume-box">
@@ -94,9 +96,9 @@ export default function Dashboard({ go }: { go: Go }) {
         {/* Right column */}
         <div>
           <div className="stat-cards">
-            <div className="stat-card blue"><div><h6>Total Users</h6><div className="val">{USERS.length}</div></div><div className="ic"><Users size={22} /></div></div>
-            <div className="stat-card pink"><div><h6>Total Games</h6><div className="val">{GAMES.length}</div></div><div className="ic"><Gamepad2 size={22} /></div></div>
-            <div className="stat-card amber"><div><h6>Today Bid Amount</h6><div className="val">{inr(0)}</div></div><div className="ic"><TrendingUp size={22} /></div></div>
+            <div className="stat-card blue"><div><h6>Total Users</h6><div className="val">{stats?.users ?? '-'}</div></div><div className="ic"><Users size={22} /></div></div>
+            <div className="stat-card pink"><div><h6>Total Games</h6><div className="val">{stats?.games ?? '-'}</div></div><div className="ic"><Gamepad2 size={22} /></div></div>
+            <div className="stat-card amber"><div><h6>Today Bid Amount</h6><div className="val">{inr(stats?.pointsToday ?? 0)}</div></div><div className="ic"><TrendingUp size={22} /></div></div>
           </div>
 
           <div className="card">
@@ -139,9 +141,9 @@ export default function Dashboard({ go }: { go: Go }) {
           <button className="btn" style={{ minWidth: 200 }} onClick={demo('Report generated')}>Submit Report</button>
         </div>
         <div className="profit-grid">
-          <div className="profit-card"><div><small>Total Bid Amount</small><b>₹ 0</b></div><button className="btn light sm" onClick={() => go('report_bid_history')}>View</button></div>
-          <div className="profit-card"><div><small>Total Win Amount</small><b>₹ 0</b></div><button className="btn light sm" onClick={() => go('report_winning')}>View</button></div>
-          <div className="profit-card green"><div><small>Total Net Profit</small><b>₹ 0</b></div><Sparkles size={22} /></div>
+          <div className="profit-card"><div><small>Today Bid Amount</small><b>{inr(stats?.pointsToday ?? 0)}</b></div><button className="btn light sm" onClick={() => go('report_bid_history')}>View</button></div>
+          <div className="profit-card"><div><small>Today Win Amount</small><b>{inr(stats?.winsToday ?? 0)}</b></div><button className="btn light sm" onClick={() => go('report_winning')}>View</button></div>
+          <div className="profit-card green"><div><small>Today Net</small><b>{inr((stats?.pointsToday ?? 0) - (stats?.winsToday ?? 0))}</b></div><Sparkles size={22} /></div>
         </div>
       </div>
 

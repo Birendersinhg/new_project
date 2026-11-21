@@ -3,12 +3,13 @@ import Layout from './Layout';
 import Login from './Login';
 import Dashboard from './pages/Dashboard';
 import { UserList, UserDetails, ReferralReport } from './pages/Users';
-import { DeclareResult, GameNames, GameRates } from './pages/Games';
+import { DeclareResult, DisawarResult, GameNames, GameRates, StarlineResult } from './pages/Games';
 import * as Reports from './pages/Reports';
 import * as WalletPages from './pages/Wallet';
 import * as Numbers from './pages/Numbers';
 import * as SettingsPages from './pages/Settings';
 import type { Go, PageParams, PageProps } from './types';
+import { api, getToken, setToken, setUnauthorizedHandler } from './api';
 
 const PAGES: Record<string, ComponentType<PageProps>> = {
   dashboards: Dashboard,
@@ -16,6 +17,8 @@ const PAGES: Record<string, ComponentType<PageProps>> = {
   'user-details': UserDetails,
   referrals: ReferralReport,
   declare_result: DeclareResult,
+  starline_result: StarlineResult,
+  disawar_result: DisawarResult,
   report_bid_history: Reports.BidHistory,
   report_sell: Reports.SellReport,
   report_winning: Reports.WinningReport,
@@ -46,7 +49,7 @@ const PAGES: Record<string, ComponentType<PageProps>> = {
 const readTab = () => new URLSearchParams(location.search).get('tab') || 'dashboards';
 
 export default function App() {
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem('demo-auth') === '1');
+  const [authed, setAuthed] = useState(() => !!getToken());
   const [tab, setTab] = useState(readTab);
   const [params, setParams] = useState<PageParams>({});
 
@@ -62,8 +65,9 @@ export default function App() {
     history.pushState(null, '', `?tab=${t}`);
     scrollTo(0, 0);
   };
-  const login = () => { sessionStorage.setItem('demo-auth', '1'); setAuthed(true); };
-  const logout = () => { sessionStorage.removeItem('demo-auth'); setAuthed(false); };
+  const login = (token: string) => { setToken(token); setAuthed(true); };
+  const logout = () => { api('POST', '/auth/logout').catch(() => {}); setToken(null); setAuthed(false); };
+  useEffect(() => setUnauthorizedHandler(() => setAuthed(false)), []);
 
   if (!authed) return <Login onLogin={login} />;
   const Page = PAGES[tab] || Dashboard;

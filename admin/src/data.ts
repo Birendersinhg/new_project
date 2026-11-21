@@ -1,23 +1,10 @@
-// Fresh demo data only — no backend. Replace with API calls later.
+// Static lists used by the admin pages. Live data (users, games, results, bids) comes from the API (see api.ts).
 export const APP_NAME = 'Matka Admin';
 
 export const today = () => new Date().toISOString().slice(0, 10);
 export const prettyDate = (d = new Date()) =>
   d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 export const inr = (n: number | string | null | undefined) => '₹ ' + Number(n || 0).toLocaleString('en-IN');
-
-// Empty until the backend is connected.
-// Game shape: { id, name, open, close, active, market }
-export interface Game {
-  id: number;
-  name: string;
-  open: string;
-  close: string;
-  active: boolean;
-  market: string;
-}
-
-export const GAMES: Game[] = [];
 
 // Market names shown in every "Game Name" / "Select Game" dropdown.
 export const MARKETS = [
@@ -26,24 +13,6 @@ export const MARKETS = [
   'KARNATAKA NIGHT', 'SHRIDEVI NIGHT', 'RUDRAKSHA NIGHT', 'MADHUR NIGHT', 'SUPREME NIGHT', 'MILAN NIGHT',
   'KALYAN NIGHT', 'RAJDHANI NIGHT', 'MAIN BAZAR', 'TIRUPATI BAZAR',
 ];
-
-// User shape: { id, name, mobile, email, date, balance, betting, transfer, active, approved, ref, mpin }
-export interface User {
-  id: number;
-  name: string;
-  mobile: string;
-  email: string;
-  date: string;
-  balance: number;
-  betting: boolean;
-  transfer: boolean;
-  active: boolean;
-  approved: boolean;
-  ref: string;
-  mpin: string;
-}
-
-export const USERS: User[] = [];
 
 export const SINGLE_DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export const JODI_DIGITS = Array.from({ length: 100 }, (_, i) => String(i).padStart(2, '0'));
@@ -76,11 +45,3 @@ export const panaAnk = ankOf;
 
 export const GAME_TYPES = ['Single Digit', 'Jodi Digit', 'Single Pana', 'Double Pana', 'Tripple Pana', 'Half Sangam', 'Full Sangam'];
 
-// Per-user history, empty until the backend is connected.
-export interface WalletRow { dt: string; amt: string; bal: number; remark: string }
-export interface BidRow { date: string; game: string; type: string; session: string; digit: string; points: number }
-export interface WinRow { date: string; game: string; type: string; digit: string; amount: number }
-
-export const WALLET_HISTORY: WalletRow[] = [];
-export const BID_HISTORY: BidRow[] = [];
-export const WIN_HISTORY: WinRow[] = [];

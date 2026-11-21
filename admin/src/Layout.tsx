@@ -3,7 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { Go } from './types';
 import {
   Home, Users, Share2, Target, FileText, Wallet, Gamepad2, Sparkles, Zap, Settings,
-  ChevronRight, ChevronDown, Menu, Maximize, Minimize, User, Lock, LogOut, Dices,
+  ChevronRight, ChevronDown, Menu, Maximize, Minimize, User, Lock, LogOut, Dices, Trophy,
 } from 'lucide-react';
 import { APP_NAME } from './data';
 
@@ -24,6 +24,8 @@ export const MENU: MenuItem[] = [
   { label: 'User Management', icon: Users, tab: 'user_management' },
   { label: 'Referral Report', icon: Share2, tab: 'referrals' },
   { label: 'Declare Result', icon: Target, tab: 'declare_result' },
+  { label: 'Starline Result', icon: Sparkles, tab: 'starline_result' },
+  { label: 'Disawar Result', icon: Trophy, tab: 'disawar_result' },
   {
     label: 'Report Management', icon: FileText, children: [
       { label: 'Users Bid History', tab: 'report_bid_history' },
