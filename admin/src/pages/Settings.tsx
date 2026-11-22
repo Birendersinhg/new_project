@@ -35,38 +35,71 @@ const LIVE_VALUES: Record<string, TextSetting> = {
 };
 
 export function AutoActive() {
-  const demo = useDemo();
-  const [mode, setMode] = useState('on');
+  const toast = useToast();
+  const { data, error, reload } = useLoad<AdminSettings>('/admin/settings');
+  const [mode, setMode] = useState<'gaming' | 'quiz' | null>(null);
+  const [timer, setTimer] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const current = mode ?? data?.app_mode ?? 'gaming';
+  const currentTimer = timer ?? data?.quiz_timer ?? '20';
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api('PUT', '/admin/settings', { app_mode: current, quiz_timer: currentTimer });
+      toast(current === 'quiz' ? 'Quiz App Mode is live for every user' : 'Gaming Mode is live for every user');
+      setMode(null);
+      setTimer(null);
+      reload();
+    } catch (err) {
+      toast((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--heading)' }}>Auto Active Mode Configuration</h2>
-          <div style={{ color: 'var(--muted)', fontSize: '.85rem', marginTop: 4 }}>Control app behavior for new registered users (Direct Gaming vs Quiz App Mode).</div>
+          <div style={{ color: 'var(--muted)', fontSize: '.85rem', marginTop: 4 }}>Choose what the user app shows after login: the gaming app or the quiz app.</div>
         </div>
         <div className="crumbs">Dashboard / <span style={{ fontWeight: 600 }}>Auto Active</span></div>
       </div>
       <Card style={{ maxWidth: 720 }}>
         <div className="section-title" style={{ marginBottom: 22 }}>
           <div className="ic" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', width: 42, height: 42 }}><Zap size={20} /></div>
-          <div><h5>Auto Active Mode Status</h5><small>Select option via radio buttons</small></div>
+          <div><h5>Auto Active Mode Status</h5><small>{error || (data ? `Currently live: ${data.app_mode === 'quiz' ? 'Quiz App Mode' : 'Gaming Mode'}` : 'Loading current mode...')}</small></div>
         </div>
-        <label className={'radio-card' + (mode === 'on' ? ' on' : '')}>
-          <input type="radio" checked={mode === 'on'} onChange={() => setMode('on')} />
+        <label className={'radio-card' + (current === 'gaming' ? ' on' : '')} onClick={() => setMode('gaming')}>
+          <input type="radio" name="app_mode" checked={current === 'gaming'} onChange={() => setMode('gaming')} />
           <div>
             <h6 style={{ color: 'var(--primary-dark)' }}>ON - Direct Play Game <span className="chip" style={{ background: 'var(--primary-soft)', color: 'var(--primary-dark)' }}>Live Gaming Mode</span></h6>
-            <p>New registered users immediately access the gaming dashboard, markets, live bidding, and wallet system upon registration.</p>
+            <p>Users see the gaming dashboard with markets, live bidding and the wallet system after login.</p>
           </div>
         </label>
-        <label className={'radio-card' + (mode === 'off' ? ' on' : '')}>
-          <input type="radio" checked={mode === 'off'} onChange={() => setMode('off')} />
+        <label className={'radio-card' + (current === 'quiz' ? ' on' : '')} onClick={() => setMode('quiz')}>
+          <input type="radio" name="app_mode" checked={current === 'quiz'} onChange={() => setMode('quiz')} />
           <div>
             <h6 style={{ color: '#9a3412' }}>OFF - Quiz App Mode <span className="chip" style={{ background: '#ffedd5', color: '#9a3412' }}>Quiz &amp; Q&amp;A Display</span></h6>
-            <p>Frontend app displays an interactive Question &amp; Answer Quiz App for users instead of the gaming dashboard.</p>
+            <p>Users see the quiz app instead of the gaming dashboard: 6 subjects, 3 difficulty levels, 5 questions per level, a timer and a final score.</p>
           </div>
         </label>
-        <div className="hint" style={{ marginBottom: 12, color: 'var(--danger)' }}>Not connected to the app: the app does not switch to a different mode for some users.</div>
-        <button className="btn" style={{ padding: '12px 28px', boxShadow: '0 4px 12px rgba(0,0,0,.15)' }} onClick={demo('Auto active settings saved')}>Save Auto Active Settings</button>
+        <Field label="Time per quiz question" style={{ maxWidth: 320, marginTop: 6 }}>
+          <select className="select" value={currentTimer} disabled={!data} onChange={(e) => setTimer(e.target.value)}>
+            <option value="20">20 seconds</option>
+            <option value="25">25 seconds</option>
+            <option value="30">30 seconds</option>
+          </select>
+        </Field>
+        <div className="hint" style={{ marginBottom: 12 }}>
+          The app checks this setting every 10 seconds, so open apps switch mode automatically without logging out. Saved with one click.
+          <br />Separately, marking a single user inactive in User Management always switches that user to Quiz App Mode.
+        </div>
+        <button className="btn" disabled={!data || saving} style={{ padding: '12px 28px', boxShadow: '0 4px 12px rgba(0,0,0,.15)' }} onClick={save}>
+          {saving ? 'Saving...' : 'Save Auto Active Settings'}
+        </button>
       </Card>
     </>
   );
@@ -157,7 +190,7 @@ export function MainSettings() {
           <Field label="Alert Marquee Message"><input className="input" placeholder="Scrolling message for app users" {...settings.input('ticker')} /></Field>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '14px 0 4px', flexWrap: 'wrap' }}>
-          <button className="btn" onClick={() => settings.save(['min_bid', 'max_bid', 'welcome_bonus', 'ticker'], 'Saved. The app shows the new values within 30 seconds.')}>
+          <button className="btn" onClick={() => settings.save(['min_bid', 'max_bid', 'welcome_bonus', 'ticker'], 'Saved. The app shows the new values within 10 seconds.')}>
             Save App Values
           </button>
           <span className="hint" style={{ margin: 0 }}>{settings.error || 'Saves Minimum/Maximum Bid Amount, Welcome Bonus and Alert Marquee Message to the app.'}</span>
@@ -324,7 +357,7 @@ export function HowToPlay() {
           <textarea className="textarea" style={{ minHeight: 140 }} placeholder="Announcements and rules for users..." {...settings.input('notice_board')} />
         </Field>
         <div className="hint" style={{ marginTop: 10 }}>{settings.error}</div>
-        <button className="btn" style={{ marginTop: 14, padding: '10px 28px' }} onClick={() => settings.save(['how_to_play', 'notice_board'], 'Saved. The app shows it within 30 seconds.')}>Submit</button>
+        <button className="btn" style={{ marginTop: 14, padding: '10px 28px' }} onClick={() => settings.save(['how_to_play', 'notice_board'], 'Saved. The app shows it within 10 seconds.')}>Submit</button>
       </Card>
     </>
   );

@@ -169,6 +169,21 @@ r = await api('PUT', '/api/admin/settings', { ticker: 'Hello players', min_bid: 
 r = await api('GET', '/api/settings');
 check('app sees new ticker, phone, min bid, rates', r.data.ticker === 'Hello players' && r.data.phone === '+91 99999 11111' && r.data.minBid === 20 && r.data.rates.single === 95);
 
+// ---------- app mode (gaming / quiz) ----------
+r = await api('GET', '/api/settings');
+check('app starts in gaming mode with a 20s quiz timer', r.data.mode === 'gaming' && r.data.quizTimer === 20);
+r = await api('PUT', '/api/admin/settings', { app_mode: 'quiz', quiz_timer: '30' }, adm);
+check('admin saves quiz app mode', r.status === 200);
+r = await api('GET', '/api/settings');
+check('app sees quiz mode and 30s timer', r.data.mode === 'quiz' && r.data.quizTimer === 30);
+r = await api('PUT', '/api/admin/settings', { app_mode: 'something' }, adm);
+check('unknown app mode rejected', r.status === 400);
+r = await api('PUT', '/api/admin/settings', { quiz_timer: '5' }, adm);
+check('unsupported quiz timer rejected', r.status === 400);
+r = await api('PUT', '/api/admin/settings', { app_mode: 'gaming' }, adm);
+r = await api('GET', '/api/settings');
+check('admin can switch back to gaming mode', r.data.mode === 'gaming');
+
 // ---------- home card results ----------
 await api('POST', '/api/admin/results', { marketId: kalyan.id, date: '2026-11-19', session: 'open', pana: '128' }, adm);
 r = await api('GET', '/api/markets');
@@ -253,11 +268,23 @@ await api('PATCH', `/api/admin/users/${uid}`, { betting: false }, adm);
 at(9, 0);
 r = await bid('Single Digit', 'Open', [{ number: '1', points: 20 }]);
 check('betting blocked by admin', r.status === 403);
+r = await api('GET', '/api/me', undefined, user);
+check('active user is in gaming mode by default', r.data.mode === 'gaming' && r.data.active === true);
 await api('PATCH', `/api/admin/users/${uid}`, { active: false }, adm);
 r = await api('GET', '/api/me', undefined, user);
-check('deactivated user is logged out', r.status === 401);
+check('deactivated user stays signed in and gets the quiz', r.status === 200 && r.data.mode === 'quiz' && r.data.active === false);
 r = await api('POST', '/api/auth/login', { mobile: '9876543210', password: 'pass1234' });
-check('deactivated user cannot login', r.status === 403);
+check('deactivated user can still login (quiz app)', r.status === 200 && !!r.data.token);
+user = r.data.token;
+r = await bid('Single Digit', 'Open', [{ number: '1', points: 20 }]);
+check('deactivated user cannot bid', r.status === 401);
+await api('PATCH', `/api/admin/users/${uid}`, { active: true }, adm);
+r = await api('GET', '/api/me', undefined, user);
+check('reactivated user returns to gaming mode', r.data.mode === 'gaming' && r.data.active === true);
+await api('PUT', '/api/admin/settings', { app_mode: 'quiz' }, adm);
+r = await api('GET', '/api/me', undefined, user);
+check('global quiz mode applies to active users too', r.data.mode === 'quiz');
+await api('PUT', '/api/admin/settings', { app_mode: 'gaming' }, adm);
 
 server.close();
 console.log(fails ? `\n${fails} FAILED` : '\nALL CHECKS PASSED');

@@ -104,7 +104,7 @@ route('POST', '/api/auth/login', ({ body }) => {
     loginFailed(`u:${mobile}`);
     throw new HttpError(401, 'Incorrect mobile number or password');
   }
-  if (!user.active) throw new HttpError(403, 'Your account is inactive. Please contact support.');
+  // Inactive accounts are not blocked: the app shows them the quiz instead of the games.
   loginOk(`u:${mobile}`);
   return { token: startSession('user', user.id) };
 });
@@ -115,17 +115,29 @@ route('POST', '/api/auth/logout', ({ req }) => {
 });
 
 // ---------- user data ----------
-function activeUser(ctx: Parameters<typeof requireAuth>[0]) {
+/** Signed-in user, including inactive ones (they are routed to the quiz app, not logged out). */
+function sessionUser(ctx: Parameters<typeof requireAuth>[0]) {
   const id = requireAuth(ctx, 'user');
   const user = db.prepare('SELECT id, name, mobile, balance, active, betting FROM users WHERE id = ?').get(id) as
     { id: number; name: string; mobile: string; balance: number; active: number; betting: number } | undefined;
-  if (!user || !user.active) throw new HttpError(401, 'Your account is inactive. Please contact support.');
+  if (!user) throw new HttpError(401, 'Please login again');
+  return user;
+}
+
+/** Inactive users only get the quiz app; gaming actions stay blocked for them. */
+function activeUser(ctx: Parameters<typeof requireAuth>[0]) {
+  const user = sessionUser(ctx);
+  if (!user.active) throw new HttpError(401, 'Your account is inactive. Please contact support.');
   return user;
 }
 
 route('GET', '/api/me', (ctx) => {
-  const u = activeUser(ctx);
-  return { id: u.id, name: u.name, mobile: u.mobile, balance: u.balance, betting: !!u.betting };
+  const u = sessionUser(ctx);
+  return {
+    id: u.id, name: u.name, mobile: u.mobile, balance: u.balance, betting: !!u.betting, active: !!u.active,
+    // Global Quiz App Mode applies to everyone; an inactive account gets the quiz on its own.
+    mode: !u.active || getSetting('app_mode') === 'quiz' ? 'quiz' : 'gaming',
+  };
 });
 
 // Includes today's declared result, so the home cards show it as soon as the admin declares it.
@@ -150,6 +162,8 @@ route('GET', '/api/settings', () => ({
   howToPlay: getSetting('how_to_play'),
   notice: getSetting('notice_board'),
   sliders: (JSON.parse(getSetting('sliders')) as { url: string; order: number }[]).map((s) => s.url),
+  mode: getSetting('app_mode') === 'quiz' ? 'quiz' : 'gaming',
+  quizTimer: Number(getSetting('quiz_timer')) || 20,
 }));
 
 // ---------- bids ----------

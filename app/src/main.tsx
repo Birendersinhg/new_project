@@ -7,6 +7,7 @@ import './money.css';
 import './games.css';
 import './rates.css';
 import './charts.css';
+import './quiz.css';
 
 clearOldLocalData();
 

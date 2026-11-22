@@ -41,10 +41,18 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
   return data as T;
 }
 
-export interface Me { id: number; name: string; mobile: string; balance: number; betting: boolean }
+export interface Me {
+  id: number; name: string; mobile: string; balance: number; betting: boolean; active: boolean;
+  /** 'quiz' when the admin set Quiz App Mode globally or marked this account inactive. */
+  mode: 'gaming' | 'quiz';
+}
 export interface Rates { single: number; jodi: number; sp: number; dp: number; tp: number; half: number; full: number }
 export interface PublicSettings {
   ticker: string; phone: string; whatsapp: string; minBid: number; maxBid: number; rates: Rates;
   howToPlay: string; notice: string; sliders: string[];
+  /** What the app shows after login; switched by the admin from Auto Active. */
+  mode: 'gaming' | 'quiz';
+  /** Seconds allowed per quiz question. */
+  quizTimer: number;
 }
 export interface MyBid { id: number; date: string; market: string; game: string; session: string | null; number: string; points: number; status: 'pending' | 'won' | 'lost' | 'reverted'; win: number }

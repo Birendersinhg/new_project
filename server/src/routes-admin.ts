@@ -64,8 +64,7 @@ route('PATCH', '/api/admin/users/:id', (ctx) => {
   for (const key of ['active', 'betting', 'approved'] as const) {
     if (typeof ctx.body[key] === 'boolean') db.prepare(`UPDATE users SET ${key} = ? WHERE id = ?`).run(ctx.body[key] ? 1 : 0, id);
   }
-  // Deactivating a user logs them out everywhere.
-  if (ctx.body.active === false) db.prepare("DELETE FROM sessions WHERE kind = 'user' AND subject_id = ?").run(id);
+  // Inactive users stay signed in; their app switches to Quiz App Mode instead.
 });
 
 route('POST', '/api/admin/users/:id/wallet', (ctx) => {
@@ -199,7 +198,7 @@ route('GET', '/api/admin/bids', (ctx) => {
 });
 
 // ---------- settings ----------
-const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board'] as const;
+const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'app_mode', 'quiz_timer'] as const;
 const LONG_TEXT = ['how_to_play', 'notice_board'];
 const MAX_SLIDERS = 10;
 
@@ -217,6 +216,8 @@ route('PUT', '/api/admin/settings', (ctx) => {
     if (b[k] === undefined) continue;
     const v = String(b[k]).trim().slice(0, LONG_TEXT.includes(k) ? 5000 : 300);
     if (['min_bid', 'max_bid', 'welcome_bonus'].includes(k) && !/^\d+$/.test(v)) throw new HttpError(400, `${k.replace('_', ' ')} must be a number`);
+    if (k === 'app_mode' && v !== 'gaming' && v !== 'quiz') throw new HttpError(400, 'Mode must be gaming or quiz');
+    if (k === 'quiz_timer' && !['20', '25', '30'].includes(v)) throw new HttpError(400, 'Quiz timer must be 20, 25 or 30 seconds');
     updates.push([k, v]);
   }
   const min = Number(updates.find(([k]) => k === 'min_bid')?.[1] ?? getSetting('min_bid'));

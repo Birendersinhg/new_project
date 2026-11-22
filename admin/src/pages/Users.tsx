@@ -131,6 +131,9 @@ export function UserDetails({ go, params }: { go: Go; params: PageParams }) {
               Approved: {user.approved ? 'Yes' : 'No'}
             </button>
           </div>
+          <div className="hint" style={{ marginTop: 10 }}>
+            Inactive switches only this user&apos;s app to Quiz App Mode. They stay signed in and can log in normally with the same details.
+          </div>
         </Card>
 
         <Card>

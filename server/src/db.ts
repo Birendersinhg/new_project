@@ -1,8 +1,12 @@
+import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hashPassword } from './auth.ts';
 
 const file = process.env.DB_FILE ?? fileURLToPath(new URL('../data/kalyan.db', import.meta.url));
+// First run on a fresh checkout: the data folder may not exist yet.
+if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
 export const db = new DatabaseSync(file);
 
 // 'reverted' = cancelled by the admin and points refunded.
@@ -131,6 +135,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   notice_board: '',
   // Home screen banner images: [{ url, order }].
   sliders: '[]',
+  // What the user app shows after login: 'gaming' (matka) or 'quiz' (quiz app mode).
+  app_mode: 'gaming',
+  // Seconds allowed per quiz question (20, 25 or 30).
+  quiz_timer: '20',
   // Win amount for every 10 points played.
   rates: JSON.stringify({ single: 100, jodi: 1000, sp: 1500, dp: 3000, tp: 7000, half: 10000, full: 100000 }),
 };

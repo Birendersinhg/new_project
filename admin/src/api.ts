@@ -64,6 +64,7 @@ export interface Slider { url: string; order: number }
 export interface AdminSettings {
   ticker: string; contact_phone: string; whatsapp: string; min_bid: string; max_bid: string; welcome_bonus: string;
   how_to_play: string; notice_board: string; rates: Rates; sliders: Slider[];
+  app_mode: 'gaming' | 'quiz'; quiz_timer: string;
 }
 
 /** Today's date as YYYY-MM-DD in local time. */

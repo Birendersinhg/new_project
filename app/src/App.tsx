@@ -17,6 +17,7 @@ import { GameRateScreen, TimeTableScreen } from './rates';
 import { SettingsScreen } from './settings';
 import { GamePlayScreen } from './play';
 import { BidHistoryScreen } from './history';
+import QuizApp from './quiz';
 import { Banner, HowToPlayScreen, NoticeScreen, telLink } from './content';
 import {
   ChartHubScreen, ChartMarketsScreen, JodiChartScreen, PanelChartScreen, StarlineChartScreen, DisawarChartScreen,
@@ -167,7 +168,8 @@ export default function App() {
   useEffect(() => {
     if (!token) return;
     load();
-    const t = setInterval(() => { setNow(new Date()); load(); }, 30000);
+    // Refreshed often so an admin's active/inactive and Auto Active changes show up quickly.
+    const t = setInterval(() => { setNow(new Date()); load(); }, 10000);
     return () => clearInterval(t);
   }, [token, load]);
 
@@ -193,6 +195,12 @@ export default function App() {
     go('games');
   };
   const logout = () => { api('POST', '/auth/logout').catch(() => {}); signOut(); };
+
+  // Auto Active (set by the admin) decides which app the user sees after login; the server
+  // also returns 'quiz' for this user alone when the admin marks the account inactive.
+  if (me.mode === 'quiz') {
+    return <QuizApp name={me.name} timerSeconds={settings.quizTimer} onLogout={logout} />;
+  }
 
   let screen;
   switch (view) {
