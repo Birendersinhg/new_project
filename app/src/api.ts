@@ -47,6 +47,17 @@ export interface Me {
   mode: 'gaming' | 'quiz';
 }
 export interface Rates { single: number; jodi: number; sp: number; dp: number; tp: number; half: number; full: number }
+
+/** Payee details for UPI payments, set by the admin. `enabled` is false until a UPI ID is saved. */
+export interface UpiConfig {
+  enabled: boolean;
+  vpa: string;
+  name: string;
+  note: string;
+  minDeposit: number;
+  minWithdraw: number;
+}
+
 export interface PublicSettings {
   ticker: string; phone: string; whatsapp: string; minBid: number; maxBid: number; rates: Rates;
   howToPlay: string; notice: string; sliders: string[];
@@ -54,5 +65,24 @@ export interface PublicSettings {
   mode: 'gaming' | 'quiz';
   /** Seconds allowed per quiz question. */
   quizTimer: number;
+  /** Where to send UPI payments. */
+  upi: UpiConfig;
 }
+
+export type PaymentStatus = 'pending' | 'approved' | 'paid' | 'rejected';
+
+/** A top-up the customer says they paid; credited only after the admin checks the UTR. */
+export interface DepositRow {
+  id: number; amount: number; utr: string; /** UPI ID or mobile the customer paid from. */
+  payer: string | null; status: PaymentStatus; remark: string | null; date: string;
+}
+
+/** A withdrawal request; the amount is held from the balance when it is created. */
+export interface WithdrawRow {
+  id: number; amount: number; method: 'upi' | 'bank';
+  upi: string | null; accountName: string | null; accountNo: string | null; ifsc: string | null;
+  status: PaymentStatus; remark: string | null; date: string;
+}
+
+export interface MyPayments { deposits: DepositRow[]; withdrawals: WithdrawRow[] }
 export interface MyBid { id: number; date: string; market: string; game: string; session: string | null; number: string; points: number; status: 'pending' | 'won' | 'lost' | 'reverted'; win: number }

@@ -6,16 +6,18 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/games.test.mjs && node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/results.test.mjs",
+    "test": "node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/games.test.mjs && node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/results.test.mjs && node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/upi.test.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.3.4",

@@ -1,7 +1,7 @@
-import { useState, type ReactNode, type FormEvent } from 'react';
+import type { ReactNode } from 'react';
 import {
   ChevronLeft, ChevronRight, RotateCw, Bell, Wallet, Gavel, Receipt,
-  Sparkles, Award, History, Headphones, MessageSquareText, X, Hammer, Banknote, CreditCard, Phone, IndianRupee,
+  Sparkles, Award, History, Headphones, MessageSquareText, X, Hammer, Banknote, CreditCard,
 } from 'lucide-react';
 import type { Go, LucideIcon } from './types';
 import { useAppData } from './appdata';
@@ -85,58 +85,7 @@ export function FundsScreen({ onBack, onOpen }: ScreenNavProps) {
   );
 }
 
-// Showcase-only screens: nothing is charged, sent or stored.
-interface MoneyScreenProps {
-  kind: 'add' | 'withdraw';
-  balance: number;
-  onBack: () => void;
-}
-
-export function MoneyScreen({ kind, balance, onBack }: MoneyScreenProps) {
-  const { settings } = useAppData();
-  const isAdd = kind === 'add';
-  const [amount, setAmount] = useState('');
-  const [msg, setMsg] = useState('');
-  const quick = [300, 500, 1000, 2000];
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    setMsg('Demo screen only - no payment is processed.');
-  };
-
-  return (
-    <div className="phone sub money">
-      <PageHeader
-        title={isAdd ? 'ADD MONEY' : 'WITHDRAW'}
-        onBack={onBack}
-        right={<span className="ph-pill"><Wallet size={16} /> ₹{balance.toFixed(2)}</span>}
-      />
-      <div className="hub">
-        <div className="balance-card">
-          <span>Available Balance</span>
-          <b>₹{balance.toFixed(2)} <small>INR</small></b>
-        </div>
-        <div className="query-card">
-          <Headphones size={26} />
-          <span>For Query&apos;s please contact</span>
-          <a className="q-call" href={telLink(settings.phone) || undefined}><Phone size={16} /> Call</a>
-          <a className="q-wa" href={whatsappLink(settings.whatsapp) || undefined} target="_blank" rel="noreferrer"><MessageSquareText size={16} /> WhatsApp</a>
-        </div>
-        <div className="quick-row">
-          {quick.map((q) => <button key={q} onClick={() => { setMsg(''); setAmount(String(q)); }}>₹{q}</button>)}
-        </div>
-        <form onSubmit={submit}>
-          <label className="field amount-field">
-            <IndianRupee size={22} />
-            <input type="number" inputMode="numeric" min="1" placeholder="Enter Amount" value={amount} onChange={(e) => { setMsg(''); setAmount(e.target.value); }} />
-          </label>
-          <button className="auth-btn">{isAdd ? 'PAY NOW' : 'WITHDRAW NOW'}</button>
-        </form>
-        {msg && <div className="info-box">{msg}</div>}
-      </div>
-    </div>
-  );
-}
+// Add money (addmoney) and withdraw live in ./payments.tsx; they talk to the server.
 
 export function NotificationsScreen({ onBack }: { onBack: () => void }) {
   return (

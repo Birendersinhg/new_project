@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, Globe, Smartphone, PlayCircle, Gift, UserPlus, CreditCard, RefreshCw, Target, Dices, QrCode, Check } from 'lucide-react';
+import { Zap, Globe, Smartphone, PlayCircle, Gift, UserPlus, CreditCard, RefreshCw, Target, Dices, Check } from 'lucide-react';
 import { PageHeader, Card, Field, DataTable, Modal, useDemo, useToast } from '../ui';
 import { api, useLoad, type AdminSettings, type Slider } from '../api';
 
@@ -16,6 +16,7 @@ function useSettingsForm() {
     disabled: !data,
     onChange: (e: { target: { value: string } }) => setEdits({ ...edits, [k]: numeric ? e.target.value.replace(/\D/g, '') : e.target.value }),
   });
+  const set = (k: TextSetting, v: string) => setEdits({ ...edits, [k]: v });
   const save = async (keys: TextSetting[], done: string) => {
     try {
       await api('PUT', '/admin/settings', Object.fromEntries(keys.map((k) => [k, value(k)])));
@@ -24,7 +25,7 @@ function useSettingsForm() {
       toast((err as Error).message);
     }
   };
-  return { input, save, error };
+  return { input, set, save, error, value };
 }
 
 // Labels in the "Add Value's" card that are connected to the app.
@@ -137,17 +138,32 @@ export function MainSettings() {
           <button className="btn" onClick={demo('Bank details saved')}>Submit</button>
         </Card>
         <Card style={{ marginBottom: 0 }}>
-          <h5 className="card-title">UPI &amp; QR Code (Add Fund)</h5>
-          <div className="card-sub" style={{ margin: '-8px 0 14px' }}>Set one UPI ID and one QR image. The app will show UPI, QR or both based on the checkboxes below.</div>
-          <Field label="UPI ID" style={{ marginBottom: 14 }}><input className="input" placeholder="example@upi" /></Field>
-          <Field label="QR Code Image (Pick File or Enter URL)">
-            <input type="file" className="input" accept="image/*" style={{ marginBottom: 10 }} />
-            <input className="input" placeholder="Or paste image URL" />
+          <h5 className="card-title">UPI Payments (Add Fund)</h5>
+          <div className="card-sub" style={{ margin: '-8px 0 14px' }}>
+            The app builds UPI payment links from these details. The customer pays in their own UPI app and sends you the
+            12-digit UTR; nothing is credited until you approve it under Wallet &rarr; Fund Request.
+          </div>
+          <Field label="UPI ID (payee) *" style={{ marginBottom: 14 }}>
+            <input className="input" placeholder="shop@okhdfc" autoCapitalize="none" {...settings.input('upi_id')} />
           </Field>
-          <div className="qr-preview"><div className="qr-box"><QrCode size={32} /></div><span style={{ color: 'var(--muted)', fontSize: '.82rem' }}>No QR code selected</span></div>
-          <label className="check"><input type="checkbox" /> Show UPI on frontend (Add Point)</label>
-          <label className="check"><input type="checkbox" /> Show QR Code on frontend (Add Point)</label>
-          <button className="btn" style={{ marginTop: 14 }} onClick={demo('UPI settings saved')}>Save</button>
+          <Field label="Payee name (shown in the UPI app)" style={{ marginBottom: 14 }}>
+            <input className="input" placeholder="My Shop" {...settings.input('upi_name')} />
+          </Field>
+          <Field label="Payment note (tn)" style={{ marginBottom: 14 }}>
+            <input className="input" placeholder="Wallet top-up" {...settings.input('upi_note')} />
+          </Field>
+          <div className="row" style={{ marginBottom: 14 }}>
+            <Field label="Minimum deposit"><input className="input" inputMode="numeric" placeholder="10" {...settings.input('min_deposit', true)} /></Field>
+            <Field label="Minimum withdrawal"><input className="input" inputMode="numeric" placeholder="100" {...settings.input('min_withdraw', true)} /></Field>
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={settings.value('upi_enabled') === '1'} onChange={(e) => settings.set('upi_enabled', e.target.checked ? '1' : '0')} />
+            {' '}Show UPI payment buttons in the app
+          </label>
+          <button className="btn" style={{ marginTop: 14 }} onClick={() => settings.save(['upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw'], 'UPI settings saved. The app shows them within 10 seconds.')}>
+            Save UPI Settings
+          </button>
+          <div className="hint" style={{ marginTop: 10 }}>{settings.error}</div>
         </Card>
         <Card style={{ marginBottom: 0 }}>
           <h5 className="card-title">M-PIN Lock Screen Setting</h5>

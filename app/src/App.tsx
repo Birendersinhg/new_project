@@ -10,8 +10,9 @@ import type { Go, LucideIcon, View } from './types';
 import Auth from './Auth';
 import Drawer from './Drawer';
 import {
-  BidsScreen, FundsScreen, MoneyScreen, NotificationsScreen, PlaceholderScreen, SupportModal,
+  BidsScreen, FundsScreen, NotificationsScreen, PlaceholderScreen, SupportModal,
 } from './screens';
+import { AddMoneyScreen, FundHistoryScreen, WithdrawScreen } from './payments';
 import { GameTypesScreen, ClosedModal } from './games';
 import { GameRateScreen, TimeTableScreen } from './rates';
 import { SettingsScreen } from './settings';
@@ -210,8 +211,10 @@ export default function App() {
       break;
     case 'bids': screen = <BidsScreen onBack={back} onOpen={go} />; break;
     case 'funds': screen = <FundsScreen onBack={back} onOpen={go} />; break;
-    case 'addmoney': screen = <MoneyScreen kind="add" balance={balance} onBack={back} />; break;
-    case 'withdraw': screen = <MoneyScreen kind="withdraw" balance={balance} onBack={back} />; break;
+    case 'addmoney': screen = <AddMoneyScreen balance={balance} onBack={back} />; break;
+    case 'withdraw': screen = <WithdrawScreen balance={balance} onBack={back} />; break;
+    case 'Add Fund History': screen = <FundHistoryScreen kind="deposit" onBack={() => go('funds')} />; break;
+    case 'Withdraw Fund History': screen = <FundHistoryScreen kind="withdraw" onBack={() => go('funds')} />; break;
     case 'games':
       screen = market ? <GameTypesScreen market={market} onBack={back} onPick={(g) => { setGame(g); go('play'); }} /> : null;
       break;

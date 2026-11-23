@@ -1,4 +1,5 @@
 // Endpoints used by the user app.
+import { cleanVpa, isValidVpa } from '../../app/src/upi.ts';
 import { checkPassword, hashPassword, newToken } from './auth.ts';
 import { changeBalance, db, getSetting, tx } from './db.ts';
 import { OPEN_ONLY, canonicalNumber, gameKind, getRates } from './game.ts';
@@ -164,6 +165,7 @@ route('GET', '/api/settings', () => ({
   sliders: (JSON.parse(getSetting('sliders')) as { url: string; order: number }[]).map((s) => s.url),
   mode: getSetting('app_mode') === 'quiz' ? 'quiz' : 'gaming',
   quizTimer: Number(getSetting('quiz_timer')) || 20,
+  upi: publicUpi(),
 }));
 
 // ---------- bids ----------
@@ -220,6 +222,106 @@ route('GET', '/api/bids', (ctx) => {
   const user = activeUser(ctx);
   return db.prepare(`SELECT b.id, b.date, m.name AS market, b.game, b.session, b.number, b.points, b.status, b.win_amount AS win
     FROM bids b JOIN markets m ON m.id = b.market_id WHERE b.user_id = ? ORDER BY b.id DESC LIMIT 300`).all(user.id);
+});
+
+// ---------- UPI payments (intent only, no gateway) ----------
+// A UPI link opens the customer's payment app; it can never confirm a payment. So a top-up
+// is a *claim*: the customer pays, sends the 12-digit UTR, and an admin approves it in the
+// dashboard. Only that approval credits the wallet.
+const MAX_AMOUNT = 500_000;
+
+/** Payee details the app needs to build the link; sent with /api/settings. */
+function publicUpi() {
+  return {
+    enabled: getSetting('upi_enabled') === '1' && !!getSetting('upi_id'),
+    vpa: getSetting('upi_id'),
+    name: getSetting('upi_name') || 'Payment',
+    note: getSetting('upi_note'),
+    minDeposit: Number(getSetting('min_deposit')) || 1,
+    minWithdraw: Number(getSetting('min_withdraw')) || 1,
+  };
+}
+
+/** The customer's own UPI ID or the mobile number they paid from, used to match the UTR. */
+function payerOf(v: unknown): string {
+  const raw = String(v ?? '').trim();
+  if (!raw) throw new HttpError(400, 'Enter the UPI ID or mobile number you paid from');
+  const vpa = cleanVpa(raw);
+  if (vpa.includes('@')) {
+    if (!isValidVpa(vpa)) throw new HttpError(400, 'That UPI ID does not look right. It should look like name@bank');
+    return vpa;
+  }
+  const digits = raw.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
+  if (!/^[6-9]\d{9}$/.test(digits)) throw new HttpError(400, 'Enter a valid UPI ID (name@bank) or 10-digit mobile number');
+  return digits;
+}
+
+route('POST', '/api/payments/upi', (ctx) => {
+  const user = sessionUser(ctx);
+  const upi = publicUpi();
+  if (!upi.enabled) throw new HttpError(400, 'UPI payments are not available right now');
+  const amount = int(ctx.body.amount, 'Amount');
+  if (amount < upi.minDeposit) throw new HttpError(400, `Minimum deposit is ₹${upi.minDeposit}`);
+  if (amount > MAX_AMOUNT) throw new HttpError(400, 'That amount is too large. Please contact support.');
+  const payer = payerOf(ctx.body.payer);
+  const utr = String(ctx.body.utr ?? '').trim();
+  if (!/^\d{12}$/.test(utr)) throw new HttpError(400, 'Enter the 12-digit UTR / reference number from your UPI app');
+  if (db.prepare('SELECT 1 FROM upi_payments WHERE utr = ?').get(utr)) {
+    throw new HttpError(409, 'This UTR has already been submitted. Contact support if you paid twice.');
+  }
+  const row = db.prepare('INSERT INTO upi_payments (user_id, amount, utr, payer) VALUES (?, ?, ?, ?) RETURNING id')
+    .get(user.id, amount, utr, payer) as { id: number };
+  return { id: row.id, amount, payer, status: 'pending' };
+});
+
+route('GET', '/api/payments/mine', (ctx) => {
+  const user = sessionUser(ctx);
+  return {
+    deposits: db.prepare('SELECT id, amount, utr, payer, status, remark, created_at AS date FROM upi_payments WHERE user_id = ? ORDER BY id DESC LIMIT 50').all(user.id),
+    // The full account number is only ever shown to the admin; the app sees the last 4 digits.
+    withdrawals: db.prepare(`SELECT id, amount, method, upi, account_name AS accountName,
+        CASE WHEN account_no IS NULL THEN NULL ELSE '••••' || substr(account_no, -4) END AS accountNo,
+        ifsc, status, remark, created_at AS date
+      FROM withdraw_requests WHERE user_id = ? ORDER BY id DESC LIMIT 50`).all(user.id),
+  };
+});
+
+// Withdrawals hold the points straight away, so the same balance cannot be bid and withdrawn.
+route('POST', '/api/withdrawals', (ctx) => {
+  const user = sessionUser(ctx);
+  const amount = int(ctx.body.amount, 'Amount');
+  const min = Number(getSetting('min_withdraw')) || 1;
+  if (amount < min) throw new HttpError(400, `Minimum withdrawal is ₹${min}`);
+  if (amount > MAX_AMOUNT) throw new HttpError(400, 'That amount is too large. Please contact support.');
+
+  const method = ctx.body.method === 'bank' ? 'bank' : 'upi';
+  let upiId: string | null = null;
+  let accountName: string | null = null;
+  let accountNo: string | null = null;
+  let ifsc: string | null = null;
+  if (method === 'upi') {
+    upiId = cleanVpa(str(ctx.body.upi, 'UPI ID', 100));
+    if (!isValidVpa(upiId)) throw new HttpError(400, 'Enter a valid UPI ID like name@bank');
+  } else {
+    accountName = str(ctx.body.accountName, 'Account holder name', 80);
+    accountNo = str(ctx.body.accountNo, 'Account number', 30);
+    ifsc = str(ctx.body.ifsc, 'IFSC code', 15).toUpperCase();
+    if (!/^\d{6,20}$/.test(accountNo)) throw new HttpError(400, 'Enter a valid account number');
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) throw new HttpError(400, 'Enter a valid IFSC code');
+  }
+
+  return tx(() => {
+    const row = db.prepare(`INSERT INTO withdraw_requests (user_id, amount, method, upi, account_name, account_no, ifsc)
+      VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`)
+      .get(user.id, amount, method, upiId, accountName, accountNo, ifsc) as { id: number };
+    let balance: number;
+    try {
+      balance = changeBalance(user.id, -amount, `Withdraw request #${row.id}`);
+    } catch {
+      throw new HttpError(400, 'You do not have enough balance');
+    }
+    return { id: row.id, amount, balance, status: 'pending' };
+  });
 });
 
 // ---------- charts ----------

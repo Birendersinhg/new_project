@@ -263,6 +263,76 @@ check('old admin password no longer works', (await api('POST', '/api/admin/login
   check('refund shows in wallet history', tx.some((w: any) => w.remark.startsWith('Refund: Sita Night') && w.amt === 20));
 }
 
+// ---------- UPI payments (intent link + UTR, no gateway) ----------
+{
+  r = await api('GET', '/api/settings');
+  check('UPI is off until the admin sets it up', r.data.upi.enabled === false);
+  r = await api('POST', '/api/payments/upi', { amount: 500, utr: '123456789012', payer: 'ravi@ybl' }, user);
+  check('deposit rejected while UPI is off', r.status === 400);
+
+  r = await api('PUT', '/api/admin/settings', { upi_id: ' shop@okhdfc ', upi_name: 'My Shop', upi_note: 'Top up', upi_enabled: '1', min_deposit: '50', min_withdraw: '100' }, adm);
+  check('admin saves UPI settings', r.status === 200);
+  r = await api('GET', '/api/settings');
+  check('app sees the UPI ID (spaces cleaned) and limits', r.data.upi.enabled === true && r.data.upi.vpa === 'shop@okhdfc' && r.data.upi.name === 'My Shop' && r.data.upi.minDeposit === 50 && r.data.upi.minWithdraw === 100);
+  r = await api('PUT', '/api/admin/settings', { upi_id: 'not-a-vpa' }, adm);
+  check('bad UPI ID rejected by the admin settings', r.status === 400);
+
+  const before = await bal();
+  r = await api('POST', '/api/payments/upi', { amount: 500, utr: '123456789012' }, user);
+  check('the payer UPI ID / mobile is required', r.status === 400);
+  r = await api('POST', '/api/payments/upi', { amount: 500, utr: '123456789012', payer: 'not an id!' }, user);
+  check('a bad payer is rejected', r.status === 400);
+  r = await api('POST', '/api/payments/upi', { amount: 500, utr: '12345', payer: 'ravi@ybl' }, user);
+  check('UTR must be 12 digits', r.status === 400);
+  r = await api('POST', '/api/payments/upi', { amount: 49, utr: '123456789012', payer: 'ravi@ybl' }, user);
+  check('deposit below the minimum rejected', r.status === 400);
+  r = await api('POST', '/api/payments/upi', { amount: 500, utr: '123456789012', payer: 'ravi@ybl' }, user);
+  const dep = r.data.id;
+  check('deposit claim saved as pending with the payer', r.status === 200 && r.data.status === 'pending' && r.data.payer === 'ravi@ybl');
+  check('a claim never credits the wallet by itself', (await bal()) === before);
+  r = await api('POST', '/api/payments/upi', { amount: 500, utr: '123456789012', payer: '9876543210' }, user);
+  check('the same UTR cannot be claimed twice', r.status === 409);
+
+  r = await api('GET', '/api/admin/payments?status=pending', undefined, adm);
+  check('admin sees the pending claim with user, UTR and payer', r.data.some((p: any) => p.id === dep && p.utr === '123456789012' && p.payer === 'ravi@ybl' && p.mobile === '9876543210'));
+  r = await api('POST', `/api/admin/payments/${dep}`, { action: 'approve' }, adm);
+  check('admin approval credits the points', r.status === 200 && r.data.status === 'approved' && (await bal()) === before + 500);
+  r = await api('POST', `/api/admin/payments/${dep}`, { action: 'approve' }, adm);
+  check('the same claim cannot be approved twice', r.status === 409);
+  check('wallet history shows the deposit', (await api('GET', `/api/admin/users/${uid}`, undefined, adm)).data.wallet.some((w: any) => w.remark.includes('UPI deposit') && w.amt === 500));
+
+  r = await api('POST', '/api/payments/upi', { amount: 300, utr: '999888777666', payer: '9876500011' }, user);
+  const dep2 = r.data.id;
+  r = await api('POST', `/api/admin/payments/${dep2}`, { action: 'reject', remark: 'UTR not found in bank statement' }, adm);
+  check('rejecting a claim credits nothing', r.status === 200 && r.data.status === 'rejected' && (await bal()) === before + 500);
+
+  // ---------- withdrawals ----------
+  const wBefore = await bal();
+  r = await api('POST', '/api/withdrawals', { amount: 100, method: 'upi', upi: 'bad id' }, user);
+  check('withdrawal with a bad UPI ID rejected', r.status === 400);
+  r = await api('POST', '/api/withdrawals', { amount: 50, method: 'upi', upi: 'ravi@ybl' }, user);
+  check('withdrawal below the minimum rejected', r.status === 400);
+  r = await api('POST', '/api/withdrawals', { amount: 300, method: 'upi', upi: 'ravi@ybl' }, user);
+  const wd = r.data.id;
+  check('withdrawal request holds the points', r.status === 200 && (await bal()) === wBefore - 300);
+  r = await api('POST', '/api/withdrawals', { amount: 10_000_000, method: 'upi', upi: 'ravi@ybl' }, user);
+  check('withdrawal above the balance rejected', r.status === 400 && (await bal()) === wBefore - 300);
+  r = await api('POST', `/api/admin/withdrawals/${wd}`, { action: 'reject', remark: 'Wrong UPI ID' }, adm);
+  check('rejecting a withdrawal refunds the points', r.status === 200 && (await bal()) === wBefore);
+  r = await api('POST', '/api/withdrawals', { amount: 200, method: 'bank', accountName: 'Ravi Kumar', accountNo: '123456789012', ifsc: 'hdfc0001234' }, user);
+  const wd2 = r.data.id;
+  check('bank withdrawal accepted (IFSC upper-cased)', r.status === 200 && (await bal()) === wBefore - 200);
+  r = await api('POST', `/api/admin/withdrawals/${wd2}`, { action: 'pay' }, adm);
+  check('paying keeps the points deducted', r.status === 200 && r.data.status === 'paid' && (await bal()) === wBefore - 200);
+
+  r = await api('GET', '/api/payments/mine', undefined, user);
+  check('user sees deposit and withdrawal history', r.data.deposits.length === 2 && r.data.deposits.some((d: any) => d.status === 'approved') && r.data.withdrawals.length === 2 && r.data.withdrawals.some((w: any) => w.status === 'paid'));
+  check('account number is masked in the user app', r.data.withdrawals.every((w: any) => !w.accountNo || w.accountNo.endsWith('9012')));
+
+  // turn UPI back off so later checks see a clean state
+  await api('PUT', '/api/admin/settings', { upi_enabled: '0' }, adm);
+}
+
 // ---------- permissions ----------
 await api('PATCH', `/api/admin/users/${uid}`, { betting: false }, adm);
 at(9, 0);

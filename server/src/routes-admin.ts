@@ -1,5 +1,6 @@
 // Endpoints used by the admin dashboard. Every route except login requires an admin session.
 import { ankOf, normalizePana, panaKind } from '../../app/src/matka.ts';
+import { cleanVpa, isValidVpa } from '../../app/src/upi.ts';
 import { checkPassword, hashPassword } from './auth.ts';
 import { DEFAULT_SETTINGS, changeBalance, db, getSetting, tx } from './db.ts';
 import { getRates, settle } from './game.ts';
@@ -198,7 +199,8 @@ route('GET', '/api/admin/bids', (ctx) => {
 });
 
 // ---------- settings ----------
-const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'app_mode', 'quiz_timer'] as const;
+const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'app_mode', 'quiz_timer',
+  'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw'] as const;
 const LONG_TEXT = ['how_to_play', 'notice_board'];
 const MAX_SLIDERS = 10;
 
@@ -218,6 +220,17 @@ route('PUT', '/api/admin/settings', (ctx) => {
     if (['min_bid', 'max_bid', 'welcome_bonus'].includes(k) && !/^\d+$/.test(v)) throw new HttpError(400, `${k.replace('_', ' ')} must be a number`);
     if (k === 'app_mode' && v !== 'gaming' && v !== 'quiz') throw new HttpError(400, 'Mode must be gaming or quiz');
     if (k === 'quiz_timer' && !['20', '25', '30'].includes(v)) throw new HttpError(400, 'Quiz timer must be 20, 25 or 30 seconds');
+    if (k === 'upi_enabled' && v !== '0' && v !== '1') throw new HttpError(400, 'UPI status must be on or off');
+    if (['min_deposit', 'min_withdraw'].includes(k) && (!/^\d+$/.test(v) || Number(v) < 1)) {
+      throw new HttpError(400, `${k === 'min_deposit' ? 'Minimum deposit' : 'Minimum withdrawal'} must be a number of at least 1`);
+    }
+    if (k === 'upi_id') {
+      // Stored without spaces/invisible characters; a saved ID is what the app puts in the links.
+      const id = cleanVpa(v);
+      if (id && !isValidVpa(id)) throw new HttpError(400, 'UPI ID must look like name@bank, e.g. shop@okhdfc');
+      updates.push([k, id]);
+      continue;
+    }
     updates.push([k, v]);
   }
   const min = Number(updates.find(([k]) => k === 'min_bid')?.[1] ?? getSetting('min_bid'));
@@ -301,6 +314,81 @@ route('POST', '/api/admin/disawar', (ctx) => {
 route('DELETE', '/api/admin/disawar', (ctx) => {
   admin(ctx);
   db.prepare('DELETE FROM disawar_results WHERE date = ? AND slot = ?').run(ctx.query.get('date'), ctx.query.get('slot'));
+});
+
+// ---------- UPI deposits and withdrawals ----------
+/** Every top-up claim, newest first. Only a pending one can be approved or rejected. */
+route('GET', '/api/admin/payments', (ctx) => {
+  admin(ctx);
+  const status = ctx.query.get('status');
+  const filter = status === 'pending' || status === 'approved' || status === 'rejected';
+  return db.prepare(`SELECT p.id, p.user_id AS userId, u.name, u.mobile, u.balance, p.amount, p.utr, p.payer, p.status, p.remark,
+      p.created_at AS date, p.reviewed_at AS reviewed
+    FROM upi_payments p JOIN users u ON u.id = p.user_id
+    ${filter ? 'WHERE p.status = ?' : ''} ORDER BY p.id DESC LIMIT 500`).all(...(filter ? [status as string] : []));
+});
+
+/**
+ * Approve = the UTR was checked and the points are credited. Reject = nothing is credited.
+ * This is the only place a UPI payment can turn into balance; the app cannot do it.
+ */
+route('POST', '/api/admin/payments/:id', (ctx) => {
+  admin(ctx);
+  const id = int(ctx.params.id, 'Payment');
+  const action = ctx.body.action;
+  if (action !== 'approve' && action !== 'reject') throw new HttpError(400, 'Choose approve or reject');
+  const remark = typeof ctx.body.remark === 'string' && ctx.body.remark.trim() ? ctx.body.remark.trim().slice(0, 100) : null;
+  return tx(() => {
+    const row = db.prepare('SELECT id, user_id, amount, utr, status FROM upi_payments WHERE id = ?').get(id) as
+      { id: number; user_id: number; amount: number; utr: string; status: string } | undefined;
+    if (!row) throw new HttpError(404, 'Payment not found');
+    if (row.status !== 'pending') throw new HttpError(409, 'This payment has already been reviewed');
+    if (action === 'approve') {
+      db.prepare("UPDATE upi_payments SET status = 'approved', remark = ?, reviewed_at = datetime('now', 'localtime') WHERE id = ?")
+        .run(remark ?? 'UTR verified', id);
+      const balance = changeBalance(row.user_id, row.amount, `UPI deposit #${id} (UTR ${row.utr})`);
+      return { status: 'approved', balance };
+    }
+    db.prepare("UPDATE upi_payments SET status = 'rejected', remark = ?, reviewed_at = datetime('now', 'localtime') WHERE id = ?")
+      .run(remark ?? 'Rejected by admin', id);
+    return { status: 'rejected' };
+  });
+});
+
+/** Withdrawal requests, newest first. The points were already held when the user requested. */
+route('GET', '/api/admin/withdrawals', (ctx) => {
+  admin(ctx);
+  const status = ctx.query.get('status');
+  const filter = status === 'pending' || status === 'paid' || status === 'rejected';
+  return db.prepare(`SELECT w.id, w.user_id AS userId, u.name, u.mobile, u.balance, w.amount, w.method, w.upi,
+      w.account_name AS accountName, w.account_no AS accountNo, w.ifsc, w.status, w.remark,
+      w.created_at AS date, w.reviewed_at AS reviewed
+    FROM withdraw_requests w JOIN users u ON u.id = w.user_id
+    ${filter ? 'WHERE w.status = ?' : ''} ORDER BY w.id DESC LIMIT 500`).all(...(filter ? [status as string] : []));
+});
+
+/** pay = money sent (points stay deducted). reject = points are given back. */
+route('POST', '/api/admin/withdrawals/:id', (ctx) => {
+  admin(ctx);
+  const id = int(ctx.params.id, 'Withdrawal');
+  const action = ctx.body.action;
+  if (action !== 'pay' && action !== 'reject') throw new HttpError(400, 'Choose pay or reject');
+  const remark = typeof ctx.body.remark === 'string' && ctx.body.remark.trim() ? ctx.body.remark.trim().slice(0, 100) : null;
+  return tx(() => {
+    const row = db.prepare('SELECT id, user_id, amount, status FROM withdraw_requests WHERE id = ?').get(id) as
+      { id: number; user_id: number; amount: number; status: string } | undefined;
+    if (!row) throw new HttpError(404, 'Withdrawal not found');
+    if (row.status !== 'pending') throw new HttpError(409, 'This withdrawal has already been reviewed');
+    if (action === 'pay') {
+      db.prepare("UPDATE withdraw_requests SET status = 'paid', remark = ?, reviewed_at = datetime('now', 'localtime') WHERE id = ?")
+        .run(remark ?? 'Paid by admin', id);
+      return { status: 'paid' };
+    }
+    db.prepare("UPDATE withdraw_requests SET status = 'rejected', remark = ?, reviewed_at = datetime('now', 'localtime') WHERE id = ?")
+      .run(remark ?? 'Rejected by admin', id);
+    const balance = changeBalance(row.user_id, row.amount, `Withdraw refund #${id}`);
+    return { status: 'rejected', balance };
+  });
 });
 
 // ---------- admin's own password ----------

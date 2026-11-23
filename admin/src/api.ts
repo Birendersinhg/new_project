@@ -65,6 +65,23 @@ export interface AdminSettings {
   ticker: string; contact_phone: string; whatsapp: string; min_bid: string; max_bid: string; welcome_bonus: string;
   how_to_play: string; notice_board: string; rates: Rates; sliders: Slider[];
   app_mode: 'gaming' | 'quiz'; quiz_timer: string;
+  /** UPI payee used by the app to build payment links. */
+  upi_id: string; upi_name: string; upi_note: string; upi_enabled: string; min_deposit: string; min_withdraw: string;
+}
+
+/** A top-up claim waiting for the admin to check its UTR. */
+export interface AdminDeposit {
+  id: number; userId: number; name: string; mobile: string; balance: number;
+  amount: number; utr: string; payer: string | null; status: 'pending' | 'approved' | 'rejected';
+  remark: string | null; date: string; reviewed: string | null;
+}
+
+/** A withdrawal request; the points were held when the user submitted it. */
+export interface AdminWithdrawal {
+  id: number; userId: number; name: string; mobile: string; balance: number;
+  amount: number; method: 'upi' | 'bank'; upi: string | null;
+  accountName: string | null; accountNo: string | null; ifsc: string | null;
+  status: 'pending' | 'paid' | 'rejected'; remark: string | null; date: string; reviewed: string | null;
 }
 
 /** Today's date as YYYY-MM-DD in local time. */

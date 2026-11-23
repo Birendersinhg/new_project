@@ -101,8 +101,46 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
   );
 
+  -- UPI top-ups: the customer pays with a UPI link, then sends the 12-digit UTR.
+  -- Only an admin approval credits the wallet; the browser can never mark one paid.
+  CREATE TABLE IF NOT EXISTS upi_payments (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    utr TEXT NOT NULL UNIQUE,
+    payer TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    remark TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    reviewed_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS upi_payments_user ON upi_payments (user_id, id);
+  CREATE INDEX IF NOT EXISTS upi_payments_status ON upi_payments (status, id);
+
+  -- Withdrawals: the amount is held from the balance when requested and refunded if rejected.
+  CREATE TABLE IF NOT EXISTS withdraw_requests (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    method TEXT NOT NULL DEFAULT 'upi' CHECK (method IN ('upi', 'bank')),
+    upi TEXT,
+    account_name TEXT,
+    account_no TEXT,
+    ifsc TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'rejected')),
+    remark TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    reviewed_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS withdraw_requests_user ON withdraw_requests (user_id, id);
+  CREATE INDEX IF NOT EXISTS withdraw_requests_status ON withdraw_requests (status, id);
+
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `);
+
+// Databases created before the payer column existed need it added once.
+const paymentCols = db.prepare('PRAGMA table_info(upi_payments)').all() as { name: string }[];
+if (!paymentCols.some((c) => c.name === 'payer')) db.exec('ALTER TABLE upi_payments ADD COLUMN payer TEXT');
 
 // Databases created before bids could be reverted have a narrower status check; rebuild that table once.
 const bidsSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'bids'").get() as { sql: string }).sql;
@@ -141,6 +179,13 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   quiz_timer: '20',
   // Win amount for every 10 points played.
   rates: JSON.stringify({ single: 100, jodi: 1000, sp: 1500, dp: 3000, tp: 7000, half: 10000, full: 100000 }),
+  // UPI payments. Empty UPI ID (or upi_enabled = '0') hides the pay buttons in the app.
+  upi_id: '',
+  upi_name: '',
+  upi_note: 'Wallet top-up',
+  upi_enabled: '0',
+  min_deposit: '10',
+  min_withdraw: '100',
 };
 
 const DEFAULT_MARKETS: [string, string, string][] = [

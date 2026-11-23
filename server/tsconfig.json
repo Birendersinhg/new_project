@@ -15,5 +15,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src", "scripts", "../app/src/matka.ts"]
+  "include": ["src", "scripts", "../app/src/matka.ts", "../app/src/upi.ts"]
 }
