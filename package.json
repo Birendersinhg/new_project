@@ -10,5 +10,8 @@
     "dev": "npm run build:apps && npm run serve",
     "test": "npm --prefix server test && npm --prefix app test",
     "typecheck": "npm --prefix server run typecheck && npm --prefix app run typecheck && npm --prefix admin run typecheck"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
   }
 }
