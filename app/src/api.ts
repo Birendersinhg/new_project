@@ -61,6 +61,8 @@ export interface UpiConfig {
 export interface PublicSettings {
   ticker: string; phone: string; whatsapp: string; minBid: number; maxBid: number; rates: Rates;
   howToPlay: string; notice: string; sliders: string[];
+  /** Short admin-written messages for individual screens; empty means hidden. */
+  texts: { home: string; rates: string; timetable: string; support: string; game: string };
   /** What the app shows after login; switched by the admin from Auto Active. */
   mode: 'gaming' | 'quiz';
   /** Seconds allowed per quiz question. */
@@ -85,4 +87,6 @@ export interface WithdrawRow {
 }
 
 export interface MyPayments { deposits: DepositRow[]; withdrawals: WithdrawRow[] }
+export interface AppNotification { id: number; title: string; message: string; at: string }
+export interface PassbookRow { id: number; at: string; amount: number; balance: number; remark: string }
 export interface MyBid { id: number; date: string; market: string; game: string; session: string | null; number: string; points: number; status: 'pending' | 'won' | 'lost' | 'reverted'; win: number }

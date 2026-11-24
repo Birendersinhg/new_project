@@ -70,6 +70,7 @@ export const MENU: MenuItem[] = [
       { label: 'Contact Settings', tab: 'contact_settings' },
       { label: 'Slider Images', tab: 'sliders' },
       { label: 'How To Play', tab: 'how_to_play' },
+      { label: 'Notifications', tab: 'notifications' },
     ],
   },
 ];

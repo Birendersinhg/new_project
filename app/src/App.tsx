@@ -17,9 +17,9 @@ import { GameTypesScreen, ClosedModal } from './games';
 import { GameRateScreen, TimeTableScreen } from './rates';
 import { SettingsScreen } from './settings';
 import { GamePlayScreen } from './play';
-import { BidHistoryScreen } from './history';
+import { BidHistoryScreen, PassbookScreen } from './history';
 import QuizApp from './quiz';
-import { Banner, HowToPlayScreen, NoticeScreen, telLink } from './content';
+import { Banner, HowToPlayScreen, NoticeScreen } from './content';
 import {
   ChartHubScreen, ChartMarketsScreen, JodiChartScreen, PanelChartScreen, StarlineChartScreen, DisawarChartScreen,
 } from './charts';
@@ -69,6 +69,7 @@ function MarketCard({ market, running, onOpen, onChart }: MarketCardProps) {
 interface HomeScreenProps {
   now: Date;
   balance: number;
+  mobile: string;
   go: Go;
   onMenu: () => void;
   onSupport: () => void;
@@ -76,7 +77,7 @@ interface HomeScreenProps {
   onChart: (market: Market) => void;
 }
 
-function HomeScreen({ now, balance, go, onMenu, onSupport, onMarket, onChart }: HomeScreenProps) {
+function HomeScreen({ now, balance, mobile, go, onMenu, onSupport, onMarket, onChart }: HomeScreenProps) {
   const { markets, settings } = useAppData();
   return (
     <div className="phone">
@@ -93,13 +94,14 @@ function HomeScreen({ now, balance, go, onMenu, onSupport, onMarket, onChart }: 
       </div>
 
       <Banner />
+      {settings.texts.home && <div className="info-box home-info">{settings.texts.home}</div>}
       <div className="top-actions">
         <button className="pill-btn"><PlayCircle size={30} /> STARLINE</button>
         <button className="pill-btn bright"><PlayCircle size={30} /> JACKPOT</button>
       </div>
       <div className="contact">
-        <a className="call" href={telLink(settings.phone) || undefined} aria-label="Call"><Phone size={20} fill="#fff" /></a>
-        <a className="number" href={telLink(settings.phone) || undefined}>{settings.phone}</a>
+        <span className="call"><Phone size={20} fill="#fff" /></span>
+        <span className="number">+91 {mobile.slice(0, 5)} {mobile.slice(5)}</span>
         <button className="deposit" onClick={() => go('addmoney')}><Wallet size={22} /> Deposit</button>
       </div>
       <div className="list">
@@ -206,7 +208,7 @@ export default function App() {
   let screen;
   switch (view) {
     case 'home':
-      screen = <HomeScreen now={now} balance={balance} go={go} onMenu={() => setDrawer(true)} onSupport={() => setSupport(true)} onMarket={openMarket}
+      screen = <HomeScreen now={now} balance={balance} mobile={me.mobile} go={go} onMenu={() => setDrawer(true)} onSupport={() => setSupport(true)} onMarket={openMarket}
         onChart={(m) => { setChartMarket(m); setChartFrom('home'); go('panelchart'); }} />;
       break;
     case 'bids': screen = <BidsScreen onBack={back} onOpen={go} />; break;
@@ -237,10 +239,11 @@ export default function App() {
     case 'timetable': screen = <TimeTableScreen onBack={back} />; break;
     case 'settings': screen = <SettingsScreen onBack={back} />; break;
     case 'Bid History': screen = <BidHistoryScreen onBack={() => go('bids')} />; break;
+    case 'passbook': screen = <PassbookScreen onBack={back} />; break;
     case 'howtoplay': screen = <HowToPlayScreen onBack={back} />; break;
     case 'notice': screen = <NoticeScreen onBack={back} />; break;
     case 'notifications': screen = <NotificationsScreen onBack={back} />; break;
-    default: screen = <PlaceholderScreen title={view === 'passbook' ? 'Passbook' : view} onBack={back} />;
+    default: screen = <PlaceholderScreen title={view} onBack={back} />;
   }
 
   return (

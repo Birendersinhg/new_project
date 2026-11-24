@@ -7,6 +7,7 @@ import { DeclareResult, DisawarResult, GameNames, GameRates, StarlineResult } fr
 import * as Reports from './pages/Reports';
 import * as WalletPages from './pages/Wallet';
 import * as Numbers from './pages/Numbers';
+import { Notifications } from './pages/Notifications';
 import * as SettingsPages from './pages/Settings';
 import type { Go, PageParams, PageProps } from './types';
 import { api, getToken, setToken, setUnauthorizedHandler } from './api';
@@ -44,6 +45,7 @@ const PAGES: Record<string, ComponentType<PageProps>> = {
   contact_settings: SettingsPages.ContactSettings,
   sliders: SettingsPages.SliderImages,
   how_to_play: SettingsPages.HowToPlay,
+  notifications: Notifications,
 };
 
 const readTab = () => new URLSearchParams(location.search).get('tab') || 'dashboards';

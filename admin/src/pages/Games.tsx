@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { PageHeader, Card, Field, DataTable, Modal, YesNo, useToast } from '../ui';
-import { ALL_PANAS, panaAnk } from '../data';
+import { ALL_PANAS, PANA_BY_ANK, panaAnk, panaType } from '../data';
 import { api, todayIso, useLoad, type AdminMarket, type AdminSettings, type DeclaredResult, type Rates } from '../api';
 
 /** "13:05" -> "1:05 PM" for display. */
@@ -12,6 +12,30 @@ const to12h = (t: string) => {
 
 /** Puts any 3 digits into matka order (0 counts as the highest), so 821 -> 128. */
 const normalizePana = (p: string) => [...p].sort((a, b) => (a === '0' ? 10 : +a) - (b === '0' ? 10 : +b)).join('');
+
+/** All 220 panas as tap-able chips, one tab per single digit, so nothing is hidden behind a scrolling list. */
+function PanaPicker({ value, onPick }: { value: string; onPick: (p: string) => void }) {
+  const [ank, setAnk] = useState('0');
+  const shown = value ? panaAnk(value) : ank;
+  const group = PANA_BY_ANK.find((g) => g.ank === shown)!;
+  return (
+    <div className="pana-picker">
+      <div className="pana-tabs">
+        {PANA_BY_ANK.map((g) => (
+          <button key={g.ank} type="button" className={g.ank === shown ? 'on' : ''} onClick={() => setAnk(g.ank)}>
+            {g.ank}<small>{g.items.length}</small>
+          </button>
+        ))}
+      </div>
+      <div className="pana-legend"><span className="sp">SP</span><span className="dp">DP</span><span className="tp">TP</span> Single digit {shown} - {group.items.length} panas</div>
+      <div className="pana-grid">
+        {group.items.map((p) => (
+          <button key={p} type="button" className={`pana-chip ${panaType(p).toLowerCase()}${p === value ? ' picked' : ''}`} onClick={() => onPick(p)}>{p}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function DeclareResult() {
   const toast = useToast();
@@ -79,8 +103,7 @@ export function DeclareResult() {
             </select>
           </Field>
           <Field label={`${label} Pana (3 Digits) *`}>
-            <input className="input" list="pana-list" maxLength={3} placeholder="Search or Select Pana (e.g. 123)" value={pana} onChange={(e) => setPana(e.target.value.replace(/\D/g, ''))} />
-            <datalist id="pana-list">{ALL_PANAS.map((p) => <option key={p} value={p} />)}</datalist>
+            <input className="input" maxLength={3} inputMode="numeric" placeholder="Type or pick a pana (e.g. 123)" value={pana} onChange={(e) => setPana(e.target.value.replace(/\D/g, ''))} />
             {pana.length === 3 && (
               <div className="hint" style={{ color: valid ? 'var(--success)' : 'var(--danger)' }}>
                 {valid ? (canonical !== pana ? `Will be saved as ${canonical}` : 'Valid pana') : 'Not a valid pana'}
@@ -91,6 +114,7 @@ export function DeclareResult() {
             <input className="input" readOnly placeholder="Auto-calculated (e.g. 6)" value={valid ? panaAnk(canonical) : ''} />
           </Field>
         </div>
+        <PanaPicker value={valid ? canonical : ''} onPick={setPana} />
         <button className="btn block" style={{ padding: 13 }} disabled={busy} onClick={declare}>{busy ? 'DECLARING...' : 'DECLARE GAME RESULT'}</button>
       </Card>
 

@@ -1,0 +1,154 @@
+import { useEffect, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
+import { PageHeader, Card, Field, DataTable, Modal, YesNo, useToast } from '../ui';
+import { api, useLoad, type AdminSettings } from '../api';
+
+interface AdminNotification { id: number; title: string; message: string; active: number; at: string }
+interface Form { id?: number; title: string; message: string; active: boolean }
+
+/** The scrolling text on the app's home screen. */
+function FloatingText() {
+  const toast = useToast();
+  const { data } = useLoad<AdminSettings>('/admin/settings');
+  const [text, setText] = useState('');
+  useEffect(() => { if (data) setText(data.ticker); }, [data]);
+
+  const save = async () => {
+    try {
+      await api('PUT', '/admin/settings', { ticker: text });
+      toast('Saved. The app shows the new text within 30 seconds.');
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+
+  return (
+    <Card>
+      <h5 className="card-title">Floating Text</h5>
+      <div className="card-sub">The message that scrolls across the top of the app's home screen. Up to 300 characters.</div>
+      <textarea className="textarea" style={{ minHeight: 90 }} maxLength={300} placeholder="Type the scrolling message..." value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="hint">{text.length}/300</div>
+      <div className="ticker-preview"><span>{text || 'Preview'}</span></div>
+      <button className="btn" style={{ marginTop: 14 }} onClick={save}>Save Floating Text</button>
+    </Card>
+  );
+}
+
+const TEXTS: [key: 'text_home' | 'text_rates' | 'text_timetable' | 'text_support' | 'text_game', label: string, hint: string][] = [
+  ['text_home', 'Home Screen Info Box', 'Shown under the banner on the home screen.'],
+  ['text_game', 'Game Screen Guidelines', 'Shown at the top of every game (bid) screen.'],
+  ['text_rates', 'Game Rate Note', 'Shown at the top of the Game Rate screen.'],
+  ['text_timetable', 'Time Table Note', 'Shown at the top of the Time Table screen.'],
+  ['text_support', 'Support Popup Message', 'Shown inside the Support Center popup.'],
+];
+
+/** Short messages for individual app screens. A blank one is hidden in the app. */
+function ScreenTexts() {
+  const toast = useToast();
+  const { data } = useLoad<AdminSettings>('/admin/settings');
+  const [edits, setEdits] = useState<Partial<Record<(typeof TEXTS)[number][0], string>>>({});
+  const value = (k: (typeof TEXTS)[number][0]) => edits[k] ?? data?.[k] ?? '';
+
+  const save = async () => {
+    try {
+      await api('PUT', '/admin/settings', Object.fromEntries(TEXTS.map(([k]) => [k, value(k)])));
+      toast('Saved. The app shows the new texts within 30 seconds.');
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+
+  return (
+    <Card>
+      <h5 className="card-title">Screen Texts</h5>
+      <div className="card-sub">Write short messages or guidelines for each screen. Leave one blank to hide it.</div>
+      {TEXTS.map(([k, label, hint]) => (
+        <Field key={k} label={label} style={{ marginBottom: 14 }}>
+          <textarea className="textarea" style={{ minHeight: 70 }} maxLength={5000} disabled={!data} value={value(k)} onChange={(e) => setEdits({ ...edits, [k]: e.target.value })} />
+          <div className="hint">{hint}</div>
+        </Field>
+      ))}
+      <button className="btn" onClick={save}>Save Screen Texts</button>
+    </Card>
+  );
+}
+
+export function Notifications() {
+  const toast = useToast();
+  const { data, error, reload } = useLoad<AdminNotification[]>('/admin/notifications');
+  const [modal, setModal] = useState<Form | null>(null);
+
+  const save = async () => {
+    if (!modal) return;
+    try {
+      const body = { title: modal.title, message: modal.message, active: modal.active };
+      await (modal.id ? api('PUT', `/admin/notifications/${modal.id}`, body) : api('POST', '/admin/notifications', body));
+      toast('Notification saved');
+      setModal(null);
+      reload();
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+
+  const remove = async (n: AdminNotification) => {
+    if (!confirm(`Delete "${n.title}"?`)) return;
+    try {
+      await api('DELETE', `/admin/notifications/${n.id}`);
+      toast('Notification deleted');
+      reload();
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+
+  return (
+    <>
+      <PageHeader title="Notifications" trail="Settings" current="Notifications" />
+      <FloatingText />
+      <ScreenTexts />
+      <Card>
+        <div className="card-head">
+          <div>
+            <h5 className="card-title">App Notifications</h5>
+            <div style={{ color: 'var(--muted)', fontSize: '.82rem', marginTop: 4 }}>Every active message shows on all users' Notifications screen, newest first.</div>
+          </div>
+          <button className="btn" onClick={() => setModal({ title: '', message: '', active: true })}>+ Add Notification</button>
+        </div>
+        <DataTable rows={data ?? []} empty={error || (data ? 'No notifications yet.' : 'Loading...')} columns={[
+          { h: '#', r: (_, i) => i + 1 },
+          { h: 'Title', r: (n) => <b>{n.title}</b> },
+          { h: 'Message', r: (n) => n.message || '-' },
+          { h: 'Date', r: (n) => n.at.slice(0, 16) },
+          { h: 'Shown', r: (n) => <YesNo v={n.active} /> },
+          {
+            h: 'Action', r: (n) => (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn xs" onClick={() => setModal({ id: n.id, title: n.title, message: n.message, active: !!n.active })}><Pencil size={12} /></button>
+                <button className="btn danger xs" onClick={() => remove(n)}><Trash2 size={12} /></button>
+              </div>
+            ),
+          },
+        ]} />
+      </Card>
+      {modal && (
+        <Modal
+          title={modal.id ? 'Edit Notification' : 'Add Notification'}
+          onClose={() => setModal(null)}
+          footer={<>
+            <button className="btn secondary" onClick={() => setModal(null)}>Cancel</button>
+            <button className="btn" onClick={save}>Submit</button>
+          </>}
+        >
+          <Field label="Title" style={{ marginBottom: 14 }}>
+            <input className="input" maxLength={100} value={modal.title} placeholder="e.g. Kalyan result delayed" onChange={(e) => setModal({ ...modal, title: e.target.value })} />
+          </Field>
+          <Field label="Message" style={{ marginBottom: 14 }}>
+            <textarea className="textarea" style={{ minHeight: 110 }} maxLength={1000} value={modal.message} placeholder="Optional details" onChange={(e) => setModal({ ...modal, message: e.target.value })} />
+          </Field>
+          <label className="check"><input type="checkbox" checked={modal.active} onChange={(e) => setModal({ ...modal, active: e.target.checked })} /> Show in the app</label>
+        </Modal>
+      )}
+    </>
+  );
+}

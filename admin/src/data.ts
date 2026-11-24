@@ -42,6 +42,13 @@ export const SINGLE_PANA_BY_ANK = groupByAnk(P.single);
 export const DOUBLE_PANA_BY_ANK = groupByAnk(P.double);
 export const ALL_PANAS = [...P.single, ...P.double, ...P.triple].sort((a, b) => +a - +b);
 export const panaAnk = ankOf;
+export type PanaType = 'SP' | 'DP' | 'TP';
+export const panaType = (p: string): PanaType => (P.triple.includes(p) ? 'TP' : P.double.includes(p) ? 'DP' : 'SP');
+/** Every pana (all 220) grouped by its single digit, in matka order. */
+export const PANA_BY_ANK = SINGLE_DIGITS.map((ank) => ({
+  ank,
+  items: [...P.single, ...P.double, ...P.triple].filter((p) => ankOf(p) === ank),
+}));
 
 export const GAME_TYPES = ['Single Digit', 'Jodi Digit', 'Single Pana', 'Double Pana', 'Tripple Pana', 'Half Sangam', 'Full Sangam'];
 

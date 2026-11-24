@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ChevronLeft, ChevronRight, RotateCw, Bell, Wallet, Gavel, Receipt,
   Sparkles, Award, History, Headphones, MessageSquareText, X, Hammer, Banknote, CreditCard,
 } from 'lucide-react';
 import type { Go, LucideIcon } from './types';
 import { useAppData } from './appdata';
+import { api, type AppNotification } from './api';
 import { telLink, whatsappLink } from './content';
 
 interface PageHeaderProps {
@@ -88,14 +89,34 @@ export function FundsScreen({ onBack, onOpen }: ScreenNavProps) {
 // Add money (addmoney) and withdraw live in ./payments.tsx; they talk to the server.
 
 export function NotificationsScreen({ onBack }: { onBack: () => void }) {
+  const [list, setList] = useState<AppNotification[] | null>(null);
+  const [error, setError] = useState('');
+  const load = () => {
+    setError('');
+    api<AppNotification[]>('GET', '/notifications').then(setList).catch((err: Error) => setError(err.message));
+  };
+  useEffect(load, []);
+
   return (
     <div className="phone sub">
-      <PageHeader title="NOTIFICATIONS" subtitle="Stay updated with latest alerts" onBack={onBack} right={<RotateCw size={22} />} />
-      <div className="empty">
-        <span className="empty-icon"><Bell size={56} /></span>
-        <h3>No Messages Yet</h3>
-        <p>Pull down to refresh</p>
-      </div>
+      <PageHeader title="NOTIFICATIONS" subtitle="Stay updated with latest alerts" onBack={onBack}
+        right={<button className="icon-btn" aria-label="Refresh" onClick={load}><RotateCw size={22} /></button>} />
+      {list?.length ? (
+        <div className="hub">
+          {list.map((n) => (
+            <div key={n.id} className="bh-row">
+              <div className="bh-top"><b className="pb-remark">{n.title}</b></div>
+              {n.message && <div className="nt-msg">{n.message}</div>}
+              <div className="bh-bot"><span>{n.at.slice(0, 10).split('-').reverse().join('-')} {n.at.slice(11, 16)}</span></div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">
+          <span className="empty-icon"><Bell size={56} /></span>
+          <h3>{error || (list ? 'No Messages Yet' : 'Loading...')}</h3>
+        </div>
+      )}
     </div>
   );
 }
@@ -130,6 +151,7 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
           <h3>Support Center</h3>
           <button className="modal-x" onClick={onClose} aria-label="Close"><X size={22} /></button>
         </div>
+        {settings.texts.support && <p className="modal-note">{settings.texts.support}</p>}
         <ContactRow href={telLink(settings.phone)} className="live" label="Live Chat" />
         <ContactRow href={whatsappLink(settings.whatsapp)} className="wa" label="WhatsApp Support" />
       </div>

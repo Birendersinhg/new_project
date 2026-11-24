@@ -174,6 +174,7 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
         right={<span className="ph-pill"><Wallet size={16} /> ₹{balance.toFixed(2)}</span>}
       />
       <div className="hub play">
+        {settings.texts.game && <div className="info-box">{settings.texts.game}</div>}
         <div className="play-card">
           <div className="play-date"><CalendarDays size={20} /> {today()}</div>
           {usesSession && (

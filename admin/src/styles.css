@@ -425,3 +425,27 @@ thead.upper th { text-transform: uppercase; font-size: .8rem; letter-spacing: .0
   .topbar .right .icon-btn.ghost, .profile span, .profile svg { display: none; }
   .topbar-title { font-size: .95rem; white-space: nowrap; }
 }
+
+/* Pana picker (Declare Result) */
+.pana-picker { margin: 0 0 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); padding: 12px; }
+.pana-tabs { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.pana-tabs button { border: 1px solid var(--input-border); background: var(--card); border-radius: 8px; padding: 6px 0; cursor: pointer; font-weight: 600; color: var(--heading); display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.pana-tabs button small { font-size: .62rem; font-weight: 400; color: var(--muted); }
+.pana-tabs button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.pana-tabs button.on small { color: #d6f2ee; }
+.pana-legend { display: flex; gap: 8px; align-items: center; margin: 12px 0 8px; font-size: .78rem; color: var(--muted); }
+.pana-legend span { padding: 1px 7px; border-radius: 10px; font-weight: 600; font-size: .7rem; }
+.pana-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; }
+.pana-chip { border: 1px solid var(--input-border); background: var(--card); border-radius: 8px; padding: 9px 0; cursor: pointer; font-weight: 600; font-size: .95rem; letter-spacing: 1px; color: var(--heading); }
+.pana-chip:hover { border-color: var(--primary); }
+.pana-chip.picked { background: var(--primary); border-color: var(--primary); color: #fff; }
+.sp { background: var(--primary-soft); color: var(--primary-dark); }
+.dp { background: var(--warning-soft); color: #a8690c; }
+.tp { background: var(--danger-soft); color: var(--danger); }
+.pana-chip.sp, .pana-chip.dp, .pana-chip.tp { background: var(--card); color: var(--heading); }
+.pana-chip.dp { border-color: #f0cf94; }
+.pana-chip.tp { border-color: #f4a3a8; color: var(--danger); }
+.pana-chip.picked { background: var(--primary); color: #fff; }
+
+.ticker-preview { margin-top: 10px; background: #c62828; color: #fff; border-radius: 8px; padding: 8px 12px; overflow: hidden; white-space: nowrap; font-weight: 600; font-size: .85rem; }
+.ticker-preview span { display: inline-block; }

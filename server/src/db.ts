@@ -101,6 +101,15 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
   );
 
+  -- Messages the admin writes; shown to every user on the app's Notifications screen.
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL DEFAULT '',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+
   -- UPI top-ups: the customer pays with a UPI link, then sends the 12-digit UTR.
   -- Only an admin approval credits the wallet; the browser can never mark one paid.
   CREATE TABLE IF NOT EXISTS upi_payments (
@@ -171,6 +180,12 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   welcome_bonus: '5',
   how_to_play: '',
   notice_board: '',
+  // Short texts the admin can edit; an empty one is hidden in the app.
+  text_home: '',
+  text_rates: 'Win ratio is shown per 10 points played. Rates can change; the rate shown here is the one applied.',
+  text_timetable: 'Times are shown for today. A market closes for bids at its close time.',
+  text_support: 'Our team is available to help you. Tap an option below to get in touch.',
+  text_game: 'Check the number and points before you place a bid. Placed bids cannot be changed.',
   // Home screen banner images: [{ url, order }].
   sliders: '[]',
   // What the user app shows after login: 'gaming' (matka) or 'quiz' (quiz app mode).

@@ -199,9 +199,9 @@ route('GET', '/api/admin/bids', (ctx) => {
 });
 
 // ---------- settings ----------
-const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'app_mode', 'quiz_timer',
+const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'app_mode', 'quiz_timer',
   'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw'] as const;
-const LONG_TEXT = ['how_to_play', 'notice_board'];
+const LONG_TEXT = ['how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game'];
 const MAX_SLIDERS = 10;
 
 route('GET', '/api/admin/settings', (ctx) => {
@@ -257,6 +257,33 @@ route('PUT', '/api/admin/settings', (ctx) => {
     updates.push(['sliders', JSON.stringify(list)]);
   }
   tx(() => { for (const [k, v] of updates) set.run(k, v); });
+});
+
+// ---------- notifications (written by the admin, shown in the app) ----------
+function notificationInput(body: Record<string, unknown>) {
+  return { title: str(body.title, 'Title', 100), message: String(body.message ?? '').trim().slice(0, 1000), active: body.active === false ? 0 : 1 };
+}
+
+route('GET', '/api/admin/notifications', (ctx) => {
+  admin(ctx);
+  return db.prepare('SELECT id, title, message, active, created_at AS at FROM notifications ORDER BY id DESC').all();
+});
+
+route('POST', '/api/admin/notifications', (ctx) => {
+  admin(ctx);
+  const n = notificationInput(ctx.body);
+  return db.prepare('INSERT INTO notifications (title, message, active) VALUES (?, ?, ?) RETURNING id').get(n.title, n.message, n.active);
+});
+
+route('PUT', '/api/admin/notifications/:id', (ctx) => {
+  admin(ctx);
+  const n = notificationInput(ctx.body);
+  db.prepare('UPDATE notifications SET title = ?, message = ?, active = ? WHERE id = ?').run(n.title, n.message, n.active, int(ctx.params.id, 'Notification'));
+});
+
+route('DELETE', '/api/admin/notifications/:id', (ctx) => {
+  admin(ctx);
+  db.prepare('DELETE FROM notifications WHERE id = ?').run(int(ctx.params.id, 'Notification'));
 });
 
 // ---------- starline / disawar results (one per date + time slot) ----------

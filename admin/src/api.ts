@@ -63,7 +63,8 @@ export interface Rates { single: number; jodi: number; sp: number; dp: number; t
 export interface Slider { url: string; order: number }
 export interface AdminSettings {
   ticker: string; contact_phone: string; whatsapp: string; min_bid: string; max_bid: string; welcome_bonus: string;
-  how_to_play: string; notice_board: string; rates: Rates; sliders: Slider[];
+  how_to_play: string; notice_board: string;
+  text_home: string; text_rates: string; text_timetable: string; text_support: string; text_game: string; rates: Rates; sliders: Slider[];
   app_mode: 'gaming' | 'quiz'; quiz_timer: string;
   /** UPI payee used by the app to build payment links. */
   upi_id: string; upi_name: string; upi_note: string; upi_enabled: string; min_deposit: string; min_withdraw: string;

@@ -128,3 +128,12 @@ a.call, a.number, a.modal-row { text-decoration: none; color: inherit; }
 .modal-row:disabled { opacity: .7; cursor: default; }
 .query-card a { display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 14px; text-decoration: none; }
 .bh-status.reverted { background: #eceff1; color: #546e7a; }
+
+.pb-remark { font-size: 14px; text-transform: none; font-weight: 600; line-height: 1.3; }
+.pb-amt { font-weight: 800; font-size: 17px; white-space: nowrap; }
+.pb-amt.cr { color: #2e7d32; }
+.pb-amt.dr { color: #c62828; }
+.nt-msg { color: #444; font-size: 14px; line-height: 1.45; white-space: pre-wrap; }
+
+.modal-note { margin: 0 0 12px; color: #555; font-size: 14px; line-height: 1.4; }
+.home-info { margin: 10px 16px 0; }

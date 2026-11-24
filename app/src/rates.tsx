@@ -51,6 +51,7 @@ export function GameRateScreen({ onBack }: { onBack: () => void }) {
     <div className="phone sub">
       <PageHeader title="GAME RATE" subtitle="Win Ratio for All Games" onBack={onBack} right={<SquarePen size={24} />} />
       <div className="hub">
+        {settings.texts.rates && <div className="info-box">{settings.texts.rates}</div>}
         {sections.map(({ title, icon: Icon, rates }) => (
           <section key={title} className="rate-section">
             <h3 className="rate-head"><Icon size={24} /> {title}</h3>
@@ -68,11 +69,12 @@ export function GameRateScreen({ onBack }: { onBack: () => void }) {
 }
 
 export function TimeTableScreen({ onBack }: { onBack: () => void }) {
-  const { markets } = useAppData();
+  const { markets, settings } = useAppData();
   return (
     <div className="phone sub">
       <PageHeader title="TIME TABLE" subtitle="Today's Market Schedule" onBack={onBack} right={<Clock size={26} />} />
       <div className="hub tt">
+        {settings.texts.timetable && <div className="info-box">{settings.texts.timetable}</div>}
         <div className="tt-head">
           <span>GAME NAME</span>
           <span>OPEN TIME</span>

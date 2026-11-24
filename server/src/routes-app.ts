@@ -162,6 +162,10 @@ route('GET', '/api/settings', () => ({
   rates: getRates(),
   howToPlay: getSetting('how_to_play'),
   notice: getSetting('notice_board'),
+  texts: {
+    home: getSetting('text_home'), rates: getSetting('text_rates'), timetable: getSetting('text_timetable'),
+    support: getSetting('text_support'), game: getSetting('text_game'),
+  },
   sliders: (JSON.parse(getSetting('sliders')) as { url: string; order: number }[]).map((s) => s.url),
   mode: getSetting('app_mode') === 'quiz' ? 'quiz' : 'gaming',
   quizTimer: Number(getSetting('quiz_timer')) || 20,
@@ -222,6 +226,18 @@ route('GET', '/api/bids', (ctx) => {
   const user = activeUser(ctx);
   return db.prepare(`SELECT b.id, b.date, m.name AS market, b.game, b.session, b.number, b.points, b.status, b.win_amount AS win
     FROM bids b JOIN markets m ON m.id = b.market_id WHERE b.user_id = ? ORDER BY b.id DESC LIMIT 300`).all(user.id);
+});
+
+/** Messages written by the admin, newest first. */
+route('GET', '/api/notifications', (ctx) => {
+  activeUser(ctx);
+  return db.prepare('SELECT id, title, message, created_at AS at FROM notifications WHERE active = 1 ORDER BY id DESC LIMIT 100').all();
+});
+
+/** Passbook: every change to the user's points, newest first. */
+route('GET', '/api/passbook', (ctx) => {
+  const user = activeUser(ctx);
+  return db.prepare('SELECT id, created_at AS at, amount, balance_after AS balance, remark FROM wallet_tx WHERE user_id = ? ORDER BY id DESC LIMIT 300').all(user.id);
 });
 
 // ---------- UPI payments (intent only, no gateway) ----------
