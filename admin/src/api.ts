@@ -68,6 +68,8 @@ export interface AdminSettings {
   app_mode: 'gaming' | 'quiz'; quiz_timer: string;
   /** UPI payee used by the app to build payment links. */
   upi_id: string; upi_name: string; upi_note: string; upi_enabled: string; min_deposit: string; min_withdraw: string;
+  /** Trust and security strip on the app's Add Money page: heading + one message per line. */
+  trust_title: string; trust_note: string;
 }
 
 /** A top-up claim waiting for the admin to check its UTR. */

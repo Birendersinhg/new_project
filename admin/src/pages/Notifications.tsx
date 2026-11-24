@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 import { PageHeader, Card, Field, DataTable, Modal, YesNo, useToast } from '../ui';
 import { api, useLoad, type AdminSettings } from '../api';
 
@@ -73,6 +73,51 @@ function ScreenTexts() {
   );
 }
 
+/** The reassurance strip on the app's Add Money page; empty lines hide the block. */
+function TrustMessages() {
+  const toast = useToast();
+  const { data } = useLoad<AdminSettings>('/admin/settings');
+  const [title, setTitle] = useState('');
+  const [note, setNote] = useState('');
+  useEffect(() => {
+    if (!data) return;
+    setTitle(data.trust_title);
+    setNote(data.trust_note);
+  }, [data]);
+  const lines = note.split('\n').filter((line) => line.trim()).length;
+
+  const save = async () => {
+    try {
+      await api('PUT', '/admin/settings', { trust_title: title, trust_note: note });
+      toast('Saved. The app shows these messages within 10 seconds.');
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+
+  return (
+    <Card>
+      <h5 className="card-title"><ShieldCheck size={16} style={{ verticalAlign: -3, marginRight: 6 }} />Payment Trust &amp; Security Messages</h5>
+      <div className="card-sub">Shown on the app's Add Money page, under the payment options. One message per line, up to 5; blank lines are ignored and an empty list hides the block.</div>
+      <Field label="Heading" style={{ marginBottom: 14 }}>
+        <input className="input" maxLength={300} disabled={!data} placeholder="Your payment is protected" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </Field>
+      <Field label={`Messages (one per line) — ${lines}/5`}>
+        <textarea
+          className="textarea"
+          style={{ minHeight: 130 }}
+          disabled={!data}
+          placeholder={'Your payments are safe and secure.\nYour financial information is protected with secure payment processing.'}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </Field>
+      <button className="btn" style={{ marginTop: 14 }} disabled={!data || lines > 5} onClick={save}>Save Payment Messages</button>
+      {lines > 5 && <div className="hint">Use at most 5 lines, one message each.</div>}
+    </Card>
+  );
+}
+
 export function Notifications() {
   const toast = useToast();
   const { data, error, reload } = useLoad<AdminNotification[]>('/admin/notifications');
@@ -107,6 +152,7 @@ export function Notifications() {
       <PageHeader title="Notifications" trail="Settings" current="Notifications" />
       <FloatingText />
       <ScreenTexts />
+      <TrustMessages />
       <Card>
         <div className="card-head">
           <div>

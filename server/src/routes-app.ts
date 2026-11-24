@@ -170,6 +170,7 @@ route('GET', '/api/settings', () => ({
   mode: getSetting('app_mode') === 'quiz' ? 'quiz' : 'gaming',
   quizTimer: Number(getSetting('quiz_timer')) || 20,
   upi: publicUpi(),
+  trust: publicTrust(),
 }));
 
 // ---------- bids ----------
@@ -256,6 +257,16 @@ function publicUpi() {
     minDeposit: Number(getSetting('min_deposit')) || 1,
     minWithdraw: Number(getSetting('min_withdraw')) || 1,
   };
+}
+
+/** Reassurance lines shown under the payment options; the admin edits them from Settings. */
+function publicTrust() {
+  const items = getSetting('trust_note')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  return { title: getSetting('trust_title'), items };
 }
 
 /** The customer's own UPI ID or the mobile number they paid from, used to match the UTR. */

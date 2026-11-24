@@ -4,7 +4,7 @@
 // So adding money always ends with the customer sending us the 12-digit UTR, which an
 // admin checks in the dashboard before the wallet is credited. Nothing is credited here.
 import { useEffect, useState, type FormEvent } from 'react';
-import { Check, Copy, IndianRupee, QrCode, ShieldCheck } from 'lucide-react';
+import { Check, CheckCircle2, Copy, IndianRupee, Lock, QrCode, ShieldCheck } from 'lucide-react';
 import { PageHeader } from './screens';
 import { useAppData } from './appdata';
 import { api, type MyPayments } from './api';
@@ -13,6 +13,9 @@ import {
 } from './upi';
 
 const QUICK = [300, 500, 1000, 2000];
+
+/** Icons cycled over the admin's trust messages so each line gets a small badge. */
+const TRUST_ICONS = [ShieldCheck, Lock, CheckCircle2];
 
 /** A copy-to-clipboard row used by the manual payment fallback. */
 function CopyRow({ label, value }: { label: string; value: string }) {
@@ -41,6 +44,7 @@ const statusClass = (s: string) => (s === 'approved' || s === 'paid' ? 'ok' : s 
 export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: () => void }) {
   const { settings } = useAppData();
   const upi = settings.upi;
+  const trust = settings.trust ?? { title: '', items: [] };
   const [amount, setAmount] = useState('');
   const [utr, setUtr] = useState('');
   const [payer, setPayer] = useState('');
@@ -142,6 +146,28 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
                 <a className="pay-alt" href={upiLinkBasic(pay, 'any')}>
                   Amount not filled in the app? <b>Open without amount</b> and type it yourself
                 </a>
+
+                {trust.items.length > 0 && (
+                  <div className="trust-card">
+                    {trust.title && (
+                      <div className="trust-head">
+                        <ShieldCheck size={16} />
+                        <b>{trust.title}</b>
+                      </div>
+                    )}
+                    <ul>
+                      {trust.items.map((line, i) => {
+                        const Icon = TRUST_ICONS[i % TRUST_ICONS.length];
+                        return (
+                          <li key={`${i}-${line}`}>
+                            <span className="trust-ic"><Icon size={13} /></span>
+                            <span>{line}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
 
                 {desktop && (
                   <div className="pay-qr">

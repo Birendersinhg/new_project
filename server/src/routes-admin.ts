@@ -200,8 +200,8 @@ route('GET', '/api/admin/bids', (ctx) => {
 
 // ---------- settings ----------
 const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'app_mode', 'quiz_timer',
-  'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw'] as const;
-const LONG_TEXT = ['how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game'];
+  'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw', 'trust_title', 'trust_note'] as const;
+const LONG_TEXT = ['how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'trust_note'];
 const MAX_SLIDERS = 10;
 
 route('GET', '/api/admin/settings', (ctx) => {
@@ -223,6 +223,9 @@ route('PUT', '/api/admin/settings', (ctx) => {
     if (k === 'upi_enabled' && v !== '0' && v !== '1') throw new HttpError(400, 'UPI status must be on or off');
     if (['min_deposit', 'min_withdraw'].includes(k) && (!/^\d+$/.test(v) || Number(v) < 1)) {
       throw new HttpError(400, `${k === 'min_deposit' ? 'Minimum deposit' : 'Minimum withdrawal'} must be a number of at least 1`);
+    }
+    if (k === 'trust_note' && v.split('\n').filter((line) => line.trim()).length > 5) {
+      throw new HttpError(400, 'Up to 5 trust and security messages (one per line)');
     }
     if (k === 'upi_id') {
       // Stored without spaces/invisible characters; a saved ID is what the app puts in the links.

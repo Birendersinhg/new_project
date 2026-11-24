@@ -201,6 +201,15 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   upi_enabled: '0',
   min_deposit: '10',
   min_withdraw: '100',
+  // Trust and security messages under the payment options on Add Money. One per line, up to 5.
+  trust_title: 'Your payment is protected',
+  trust_note: [
+    'Your payments are safe and secure.',
+    'Your financial information is protected with secure payment processing.',
+    'We prioritize your privacy and never compromise your security.',
+    'Pay with confidence using our trusted payment methods.',
+    'Your money and payment details are handled with care.',
+  ].join('\n'),
 };
 
 const DEFAULT_MARKETS: [string, string, string][] = [

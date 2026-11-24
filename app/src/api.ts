@@ -69,6 +69,8 @@ export interface PublicSettings {
   quizTimer: number;
   /** Where to send UPI payments. */
   upi: UpiConfig;
+  /** Reassurance lines shown under the payment options; the admin edits them. */
+  trust: { title: string; items: string[] };
 }
 
 export type PaymentStatus = 'pending' | 'approved' | 'paid' | 'rejected';

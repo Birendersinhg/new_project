@@ -204,6 +204,16 @@ check('app gets slider images in display order', r.data.sliders.join() === 'http
 r = await api('PUT', '/api/admin/settings', { sliders: [{ url: 'javascript:alert(1)' }] }, adm);
 check('non-http slider link rejected', r.status === 400);
 
+// ---------- payment trust and security messages ----------
+r = await api('GET', '/api/settings');
+check('app gets the trust and security messages', r.data.trust.title === 'Your payment is protected' && r.data.trust.items.length === 5 && r.data.trust.items[0] === 'Your payments are safe and secure.');
+r = await api('PUT', '/api/admin/settings', { trust_title: 'Pay safely', trust_note: ' Line one \n\nLine two\n' }, adm);
+check('admin saves the trust messages', r.status === 200);
+r = await api('GET', '/api/settings');
+check('app sees the edited trust messages (blank lines dropped)', r.data.trust.title === 'Pay safely' && r.data.trust.items.join('|') === 'Line one|Line two');
+r = await api('PUT', '/api/admin/settings', { trust_note: '1\n2\n3\n4\n5\n6' }, adm);
+check('more than 5 trust messages rejected', r.status === 400);
+
 // ---------- starline / disawar ----------
 r = await api('POST', '/api/admin/starline', { date: '2026-11-19', slot: '10:00 AM', pana: '852' }, adm);
 check('starline declared (852 -> 258, digit 5)', r.status === 200 && r.data.pana === '258' && r.data.ank === '5');
