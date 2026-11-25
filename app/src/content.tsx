@@ -8,7 +8,13 @@ const digits = (s: string) => s.replace(/\D/g, '');
 export const telLink = (phone: string) => (digits(phone) ? `tel:+${digits(phone).length === 10 ? '91' : ''}${digits(phone)}` : '');
 export const whatsappLink = (num: string) => (digits(num) ? `https://wa.me/${digits(num).length === 10 ? '91' : ''}${digits(num)}` : '');
 
-/** Text set by the admin (How To Play, Notice Board); line breaks are kept. */
+/** Turns http(s) links in admin text into tappable links. */
+function linkify(text: string) {
+  return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+    i % 2 ? <a key={i} className="text-link" href={part} target="_blank" rel="noreferrer noopener">{part}</a> : part);
+}
+
+/** Text set by the admin (How To Play, Notice Board); line breaks are kept and links are tappable. */
 function TextScreen({ title, subtitle, text, empty, icon, onBack }: {
   title: string; subtitle: string; text: string; empty: string; icon: React.ReactNode; onBack: () => void;
 }) {
@@ -16,7 +22,7 @@ function TextScreen({ title, subtitle, text, empty, icon, onBack }: {
     <div className="phone sub money">
       <PageHeader title={title} subtitle={subtitle} onBack={onBack} right={icon} />
       <div className="hub">
-        <div className="info-text">{text.trim() || empty}</div>
+        <div className="info-text">{linkify(text.trim() || empty)}</div>
       </div>
     </div>
   );
