@@ -4,7 +4,7 @@
 // So adding money always ends with the customer sending us the 12-digit UTR, which an
 // admin checks in the dashboard before the wallet is credited. Nothing is credited here.
 import { useEffect, useState, type FormEvent } from 'react';
-import { Check, CheckCircle2, Copy, IndianRupee, Lock, QrCode, ShieldCheck } from 'lucide-react';
+import { Check, CheckCircle2, Copy, IndianRupee, Info, Lock, QrCode, ShieldCheck } from 'lucide-react';
 import { PageHeader } from './screens';
 import { useAppData } from './appdata';
 import { api, type MyPayments } from './api';
@@ -146,6 +146,16 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
                 <a className="pay-alt" href={upiLinkBasic(pay, 'any')}>
                   Amount not filled in the app? <b>Open without amount</b> and type it yourself
                 </a>
+
+                {/* One <span>: .pay-note is a flex row, so bare <b> tags would each become a column. */}
+                <div className="pay-note">
+                  <Info size={14} />
+                  <span>
+                    A <b>Payment Alert</b> about a UPI Risk Policy check is your bank's safety check on a new payee — not a
+                    failed payment. In that alert tap <b>Pay via Mobile Number</b> and enter{' '}
+                    {mobile || upi.vpa}, or scan the QR from another phone. Every route reaches {upi.name}.
+                  </span>
+                </div>
 
                 {trust.items.length > 0 && (
                   <div className="trust-card">
