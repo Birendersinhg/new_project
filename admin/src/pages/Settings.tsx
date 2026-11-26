@@ -127,13 +127,14 @@ export function MainSettings() {
   const [slider, setSlider] = useState('on');
   const toggleDay = (d: string) => setDays((s) => { const n = new Set(s); n.has(d) ? n.delete(d) : n.add(d); return n; });
   const settings = useSettingsForm();
-  // Editing the number also rewrites the UPI address, keeping the app's links on the same account.
+  // Editing the number also rewrites a number-built UPI address, keeping the app's links on
+  // the same account. A merchant/bank VPA has its own local part, so it is left untouched.
   const mobileInput = settings.input('pay_mobile', true);
   const onMobile = (e: { target: { value: string } }) => {
     const digits = e.target.value.replace(/\D/g, '');
-    const handle = settings.value('upi_id').split('@')[1];
+    const [local, handle = ''] = settings.value('upi_id').split('@');
     // One state update, so the number and the address can never disagree.
-    settings.setMany(handle ? { pay_mobile: digits, upi_id: `${digits}@${handle}` } : { pay_mobile: digits });
+    settings.setMany(handle && /^[6-9]\d{9}$/.test(local) ? { pay_mobile: digits, upi_id: `${digits}@${handle}` } : { pay_mobile: digits });
   };
 
   return (
@@ -156,11 +157,11 @@ export function MainSettings() {
           </div>
           <Field label="Payee mobile number *" style={{ marginBottom: 14 }}>
             <input className="input" inputMode="numeric" maxLength={10} placeholder="9876543210" {...mobileInput} onChange={onMobile} />
-            <div className="hint">The number customers pay. The UPI ID below is rebuilt from it.</div>
+            <div className="hint">Shown to customers on the payment page. The "pay by number" fallback is only offered when the UPI ID is this number on a handle.</div>
           </Field>
-          <Field label="UPI ID (built from the number)" style={{ marginBottom: 14 }}>
+          <Field label="UPI ID / merchant VPA" style={{ marginBottom: 14 }}>
             <input className="input" placeholder="9876543210@okhdfc" autoCapitalize="none" {...settings.input('upi_id')} />
-            <div className="hint">UPI apps can only pay an address, not a plain number: this is number@handle. If your number is on another app (e.g. @ybl, @okaxis), change the handle here.</div>
+            <div className="hint">UPI apps can only pay an address, not a plain number. Paste your business app's merchant VPA here exactly as it is (e.g. 3114065a@bandhan); it is used as-is and is never rebuilt from the number. A plain number@handle ID stays tied to the number above.</div>
           </Field>
           <Field label="Payee name (shown in the UPI app)" style={{ marginBottom: 14 }}>
             <input className="input" placeholder="My Shop" {...settings.input('upi_name')} />

@@ -225,12 +225,13 @@ route('PUT', '/api/admin/settings', (ctx) => {
       throw new HttpError(400, `${k === 'min_deposit' ? 'Minimum deposit' : 'Minimum withdrawal'} must be a number of at least 1`);
     }
     if (k === 'pay_mobile') {
-      // The app pays a VPA, so the number is turned into <number>@<same handle as the saved UPI ID>.
+      // The app pays a VPA, so a UPI ID that was built from a number follows the new number.
+      // A merchant/bank ID pasted by the admin has its own local part and is never rebuilt.
       const digits = v.replace(/\D/g, '');
       if (digits && !/^[6-9]\d{9}$/.test(digits)) throw new HttpError(400, 'Payee mobile number must be a 10-digit Indian number');
       updates.push([k, digits]);
-      const handle = cleanVpa(getSetting('upi_id')).split('@')[1] || '';
-      if (digits && handle && b.upi_id === undefined) updates.push(['upi_id', `${digits}@${handle}`]);
+      const [local, handle = ''] = cleanVpa(getSetting('upi_id')).split('@');
+      if (digits && handle && /^[6-9]\d{9}$/.test(local) && b.upi_id === undefined) updates.push(['upi_id', `${digits}@${handle}`]);
       continue;
     }
     if (k === 'trust_note' && v.split('\n').filter((line) => line.trim()).length > 5) {

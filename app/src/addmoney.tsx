@@ -83,7 +83,8 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
   const amt = Math.round(Number(amount) || 0);
   const min = dbUpi.minDeposit || 1;
   const ready = amt >= min;
-  const mobile = dbUpi.mobile || payeeMobile(dbUpi.vpa);
+  // Only a number that IS this UPI ID pays the same account; a merchant VPA's number does not.
+  const payByNumber = payeeMobile(dbUpi.vpa);
   const pay = { vpa: dbUpi.vpa, name: dbUpi.name, amount: amt, note: dbUpi.note, txnRef: ref };
   const generic = ready ? upiLink(pay, 'any') : '';
 
@@ -181,7 +182,7 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
             <div className="payee">
               <span className="payee-av"><ShieldCheck size={20} /></span>
               <b>{dbUpi.name} <CheckCircle2 size={14} /></b>
-              <small>Verified payee · {mobile || dbUpi.vpa}</small>
+              <small>Verified payee · {payByNumber || dbUpi.vpa}</small>
             </div>
 
             <div className="pay-fig"><span>₹</span><b>{amt}</b></div>
@@ -216,17 +217,18 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
               <Info size={14} />
               <span>
                 A <b>Payment Alert</b> about a UPI Risk Policy check is your bank's safety check on a new payee — not a
-                failed payment. In that alert tap <b>Pay via Mobile Number</b> and enter{' '}
-                {mobile || dbUpi.vpa}, or scan the QR from another phone. Every route reaches {dbUpi.name}.
+                failed payment. In that alert{' '}
+                {payByNumber ? <>tap <b>Pay via Mobile Number</b> and enter {payByNumber}, </> : <>choose your own bank or try another UPI app, </>}
+                or scan the QR from another phone. Every route reaches {dbUpi.name}.
               </span>
             </div>
 
             <TrustCard trust={trust} />
 
             <div className="copy-list">
-              {/* Customers pay the number; the UPI address is only the technical target of the link. */}
-              {mobile
-                ? <CopyRow label="Mobile number" value={mobile} />
+              {/* Copy what actually reaches the payee: the number behind the ID, else the ID itself. */}
+              {payByNumber
+                ? <CopyRow label="Mobile number" value={payByNumber} />
                 : <CopyRow label="UPI ID" value={dbUpi.vpa} />}
               <CopyRow label="Amount" value={String(amt)} />
               <CopyRow label="Reference" value={ref} />
