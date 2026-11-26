@@ -35,6 +35,8 @@ route('GET', '/api/admin/stats', (ctx) => {
     bidsToday: one('SELECT COUNT(*) AS n FROM bids WHERE date = ?', today),
     pointsToday: one('SELECT COALESCE(SUM(points), 0) AS n FROM bids WHERE date = ?', today),
     winsToday: one('SELECT COALESCE(SUM(win_amount), 0) AS n FROM bids WHERE date = ?', today),
+    registeredToday: one('SELECT COUNT(*) AS n FROM users WHERE date(created_at) = ?', today),
+    loggedInToday: one('SELECT COUNT(DISTINCT user_id) AS n FROM login_log WHERE date(at) = ?', today),
   };
 });
 
@@ -44,6 +46,19 @@ const USER_COLS = 'id, name, mobile, balance, active, betting, approved, created
 route('GET', '/api/admin/users', (ctx) => {
   admin(ctx);
   return db.prepare(`SELECT ${USER_COLS} FROM users ORDER BY id DESC`).all();
+});
+
+/** Users who registered on a date, and users who logged in that day (with how many times and when last). */
+route('GET', '/api/admin/users-daily', (ctx) => {
+  admin(ctx);
+  const date = ctx.query.get('date');
+  if (!isValidDate(date)) throw new HttpError(400, 'Select a valid date');
+  return {
+    date,
+    registered: db.prepare('SELECT id, name, mobile, balance, active, created_at AS time FROM users WHERE date(created_at) = ? ORDER BY id DESC').all(date),
+    loggedIn: db.prepare(`SELECT u.id, u.name, u.mobile, u.balance, u.active, MAX(l.at) AS time, COUNT(*) AS logins
+      FROM login_log l JOIN users u ON u.id = l.user_id WHERE date(l.at) = ? GROUP BY u.id ORDER BY MAX(l.id) DESC`).all(date),
+  };
 });
 
 route('GET', '/api/admin/users/:id', (ctx) => {

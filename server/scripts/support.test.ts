@@ -71,5 +71,20 @@ let blocked = 0;
 for (let i = 0; i < 25; i++) if ((await api('POST', '/api/support/messages', { text: `spam ${i}` }, asha)).status === 429) blocked++;
 check('sending too many messages in a few minutes is slowed down', blocked >= 5, `blocked ${blocked}`);
 
+// ---------- dashboard: users registered / logged in per day ----------
+const d = new Date();
+const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+r = await api('GET', '/api/admin/stats', undefined, adm);
+check("stats count today's registrations and logins", r.data.registeredToday === 2 && r.data.loggedInToday === 2, JSON.stringify(r.data));
+await api('POST', '/api/auth/login', { mobile: '9876543210', password: 'pass1234' });
+r = await api('GET', `/api/admin/users-daily?date=${today}`, undefined, adm);
+check('daily list: both users registered today', r.status === 200 && r.data.registered.length === 2 && r.data.registered[0].mobile === '9123456780');
+const ravisLogins = r.data.loggedIn.find((u: any) => u.mobile === '9876543210');
+check('daily list: a user who logged in twice is listed once with the count', r.data.loggedIn.length === 2 && ravisLogins.logins === 2, JSON.stringify(r.data.loggedIn));
+r = await api('GET', '/api/admin/users-daily?date=2020-01-01', undefined, adm);
+check('an earlier day with nobody is empty', r.data.registered.length === 0 && r.data.loggedIn.length === 0);
+check('daily list needs admin', (await api('GET', `/api/admin/users-daily?date=${today}`)).status === 401);
+check('bad date rejected', (await api('GET', '/api/admin/users-daily?date=nope', undefined, adm)).status === 400);
+
 console.log(fails ? `\n${fails} FAILED` : '\nALL CHECKS PASSED');
 process.exit(fails ? 1 : 0);

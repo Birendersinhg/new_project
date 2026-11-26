@@ -45,6 +45,14 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
   );
 
+  -- One row per user login (and registration), so the admin can see who logged in on any day.
+  CREATE TABLE IF NOT EXISTS login_log (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS login_log_at ON login_log (at);
+
   CREATE TABLE IF NOT EXISTS admins (
     id INTEGER PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,

@@ -29,6 +29,7 @@ const otpFail = (err: unknown): never => {
 const startSession = (kind: 'user' | 'admin', id: number) => {
   const token = newToken();
   db.prepare('INSERT INTO sessions (token, kind, subject_id, expires_at) VALUES (?, ?, ?, ?)').run(token, kind, id, Date.now() + SESSION_DAYS * DAY);
+  if (kind === 'user') db.prepare('INSERT INTO login_log (user_id) VALUES (?)').run(id);
   return token;
 };
 export { startSession };

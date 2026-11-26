@@ -58,7 +58,9 @@ export interface UserBid { date: string; game: string; type: string; session: st
 export interface AdminMarket { id: number; name: string; open: string; close: string; active: number }
 export interface DeclaredResult { marketId: number; name: string; date: string; open: string | null; close: string | null; openAnk: string | null; closeAnk: string | null }
 export interface BidReportRow { id: number; user: string; mobile: string; market: string; game: string; session: string | null; number: string; points: number; status: string; win: number; time: string }
-export interface Stats { users: number; approved: number; unapproved: number; games: number; bidsToday: number; pointsToday: number; winsToday: number }
+export interface Stats { users: number; approved: number; unapproved: number; games: number; bidsToday: number; pointsToday: number; winsToday: number; registeredToday: number; loggedInToday: number }
+export interface DailyUser { id: number; name: string; mobile: string; balance: number; active: number; time: string; logins?: number }
+export interface DailyUsers { date: string; registered: DailyUser[]; loggedIn: DailyUser[] }
 export interface Rates { single: number; jodi: number; sp: number; dp: number; tp: number; half: number; full: number }
 export interface Slider { url: string; order: number }
 export interface SlotRates { starSingle: number; starSp: number; starDp: number; starTp: number; jackpotJodi: number }
