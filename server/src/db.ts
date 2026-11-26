@@ -118,6 +118,17 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS slot_bids_slot ON slot_bids (kind, date, slot);
   CREATE INDEX IF NOT EXISTS slot_bids_user ON slot_bids (user_id, id);
 
+  -- Live support chat. seen = 1 once the other side has read it (the admin for a user message, the user for an admin reply).
+  CREATE TABLE IF NOT EXISTS support_messages (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    sender TEXT NOT NULL CHECK (sender IN ('user', 'admin')),
+    text TEXT NOT NULL,
+    seen INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS support_messages_user ON support_messages (user_id, id);
+
   -- Messages the admin writes; shown to every user on the app's Notifications screen.
   CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY,
@@ -191,7 +202,7 @@ if (!bidsSql.includes("'reverted'")) {
 export const DEFAULT_SETTINGS: Record<string, string> = {
   ticker: 'PLAY FOR FUN - FREE POINTS ONLY, NO REAL MONEY',
   contact_phone: '+91 00000 00000',
-  whatsapp: '',
+  whatsapp: '9928821585',
   min_bid: '10',
   max_bid: '10000',
   welcome_bonus: '5',

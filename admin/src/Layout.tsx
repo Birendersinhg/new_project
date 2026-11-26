@@ -3,9 +3,10 @@ import type { LucideIcon } from 'lucide-react';
 import type { Go } from './types';
 import {
   Home, Users, Share2, Target, FileText, Wallet, Gamepad2, Sparkles, Zap, Settings,
-  ChevronRight, ChevronDown, Menu, Maximize, Minimize, User, Lock, LogOut, Dices, Trophy,
+  ChevronRight, ChevronDown, MessageSquare, Menu, Maximize, Minimize, User, Lock, LogOut, Dices, Trophy,
 } from 'lucide-react';
 import { APP_NAME } from './data';
+import { api } from './api';
 
 export interface MenuChild {
   label: string;
@@ -22,6 +23,7 @@ export interface MenuItem {
 export const MENU: MenuItem[] = [
   { label: 'Dashboards', icon: Home, tab: 'dashboards' },
   { label: 'User Management', icon: Users, tab: 'user_management' },
+  { label: 'Live Support Chat', icon: MessageSquare, tab: 'support_chat' },
   { label: 'Referral Report', icon: Share2, tab: 'referrals' },
   { label: 'Declare Result', icon: Target, tab: 'declare_result' },
   { label: 'Starline Result', icon: Sparkles, tab: 'starline_result' },
@@ -90,6 +92,15 @@ export default function Layout({ tab, go, onLogout, children }: LayoutProps) {
   const [menu, setMenu] = useState(false);
   const [full, setFull] = useState(false);
 
+  // Number of users waiting for a reply, shown on the Live Support Chat menu item.
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    const load = () => api<{ chats: number }>('GET', '/admin/support/unread').then((r) => setWaiting(r.chats)).catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, []);
+
   useEffect(() => {
     const g = groupOf(tab);
     if (g) setOpen((s) => new Set(s).add(g));
@@ -127,7 +138,7 @@ export default function Layout({ tab, go, onLogout, children }: LayoutProps) {
             return (
               <div key={m.label}>
                 <div className={'nav-item' + (active ? ' active' : '')} title={mini ? m.label : undefined} onClick={() => (m.children ? clickGroup(m.label) : nav(m.tab as string))}>
-                  <div className="left"><Icon size={18} /><span className="label">{m.label}</span></div>
+                  <div className="left"><Icon size={18} /><span className="label">{m.label}</span>{m.tab === 'support_chat' && waiting > 0 && <span className="nav-badge">{waiting}</span>}</div>
                   {m.children && (isOpen ? <ChevronDown size={16} className="chev" /> : <ChevronRight size={16} className="chev" />)}
                 </div>
                 {m.children && isOpen && (

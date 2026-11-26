@@ -282,6 +282,37 @@ route('PUT', '/api/admin/settings', (ctx) => {
   tx(() => { for (const [k, v] of updates) set.run(k, v); });
 });
 
+// ---------- live support chat ----------
+/** One row per user who has written: last message, when, and how many of their messages the admin has not read yet. */
+route('GET', '/api/admin/support/chats', (ctx) => {
+  admin(ctx);
+  return db.prepare(`SELECT u.id, u.name, u.mobile, m.text AS last, m.sender AS lastBy, m.created_at AS at,
+      (SELECT COUNT(*) FROM support_messages x WHERE x.user_id = u.id AND x.sender = 'user' AND x.seen = 0) AS unread
+    FROM users u JOIN support_messages m ON m.id = (SELECT MAX(id) FROM support_messages WHERE user_id = u.id)
+    ORDER BY m.id DESC LIMIT 500`).all();
+});
+
+route('GET', '/api/admin/support/unread', (ctx) => {
+  admin(ctx);
+  return db.prepare("SELECT COUNT(DISTINCT user_id) AS chats, COUNT(*) AS messages FROM support_messages WHERE sender = 'user' AND seen = 0").get();
+});
+
+route('GET', '/api/admin/support/chats/:id', (ctx) => {
+  admin(ctx);
+  const id = int(ctx.params.id, 'User');
+  db.prepare("UPDATE support_messages SET seen = 1 WHERE user_id = ? AND sender = 'user' AND seen = 0").run(id);
+  return (db.prepare('SELECT id, sender, text, created_at AS at FROM support_messages WHERE user_id = ? ORDER BY id DESC LIMIT 500').all(id) as unknown[]).reverse();
+});
+
+route('POST', '/api/admin/support/chats/:id', (ctx) => {
+  admin(ctx);
+  const id = int(ctx.params.id, 'User');
+  if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(id)) throw new HttpError(404, 'User not found');
+  const text = str(ctx.body.text, 'Message', 1000);
+  db.prepare("UPDATE support_messages SET seen = 1 WHERE user_id = ? AND sender = 'user' AND seen = 0").run(id);
+  return db.prepare("INSERT INTO support_messages (user_id, sender, text) VALUES (?, 'admin', ?) RETURNING id, sender, text, created_at AS at").get(id, text);
+});
+
 // ---------- notifications (written by the admin, shown in the app) ----------
 function notificationInput(body: Record<string, unknown>) {
   return { title: str(body.title, 'Title', 100), message: String(body.message ?? '').trim().slice(0, 1000), active: body.active === false ? 0 : 1 };

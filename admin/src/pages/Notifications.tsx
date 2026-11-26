@@ -34,6 +34,34 @@ function FloatingText() {
   );
 }
 
+/** The WhatsApp number behind the app's Support → WhatsApp Support option. */
+function WhatsAppNumber() {
+  const toast = useToast();
+  const { data } = useLoad<AdminSettings>('/admin/settings');
+  const [num, setNum] = useState('');
+  useEffect(() => { if (data) setNum(data.whatsapp); }, [data]);
+
+  const save = async () => {
+    try {
+      await api('PUT', '/admin/settings', { whatsapp: num });
+      toast('Saved. The app uses the new WhatsApp number within 30 seconds.');
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+
+  return (
+    <Card>
+      <h5 className="card-title">Support WhatsApp Number</h5>
+      <div className="card-sub">Users who tap Support &rarr; WhatsApp Support in the app are sent to a WhatsApp chat with this number. Leave it blank to switch the option off.</div>
+      <Field label="WhatsApp Number (with or without +91)">
+        <input className="input" style={{ maxWidth: 320 }} inputMode="tel" maxLength={20} placeholder="e.g. 9928821585" value={num} onChange={(e) => setNum(e.target.value.replace(/[^\d+ ]/g, ''))} />
+      </Field>
+      <button className="btn" style={{ marginTop: 14 }} onClick={save}>Save WhatsApp Number</button>
+    </Card>
+  );
+}
+
 const TEXTS: [key: 'text_home' | 'text_rates' | 'text_timetable' | 'text_support' | 'text_game', label: string, hint: string][] = [
   ['text_home', 'Home Screen Info Box', 'Shown under the banner on the home screen.'],
   ['text_game', 'Game Screen Guidelines', 'Shown at the top of every game (bid) screen.'],
@@ -151,6 +179,7 @@ export function Notifications() {
     <>
       <PageHeader title="Notifications" trail="Settings" current="Notifications" />
       <FloatingText />
+      <WhatsAppNumber />
       <ScreenTexts />
       <TrustMessages />
       <Card>

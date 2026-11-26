@@ -96,6 +96,7 @@ export type SlotKind = 'starline' | 'jackpot';
 export interface SlotList { games: string[]; slots: { slot: string; open: boolean; result: string | null }[] }
 export interface SlotBid { id: number; date: string; at: string; kind: SlotKind; slot: string; game: string; number: string; points: number; status: 'pending' | 'won' | 'lost' | 'reverted'; win: number }
 export interface SlotRates { starSingle: number; starSp: number; starDp: number; starTp: number; jackpotJodi: number }
+export interface SupportMessage { id: number; sender: 'user' | 'admin'; text: string; at: string }
 export interface AppNotification { id: number; title: string; message: string; at: string }
 export interface PassbookRow { id: number; at: string; amount: number; balance: number; remark: string }
 export interface MyBid { id: number; at: string; date: string; market: string; game: string; session: string | null; number: string; points: number; status: 'pending' | 'won' | 'lost' | 'reverted'; win: number }

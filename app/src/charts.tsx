@@ -18,16 +18,18 @@ interface NavProps {
   onBack: () => void;
 }
 
-/** Loads chart rows for a date range and indexes them by "date" or "date|slot". */
+/** Loads chart rows for a date range and indexes them by "date" or "date|slot"; reloads every 10 seconds so a result the admin just declared shows up. */
 function useRows<T extends { date: string; slot?: string }>(path: string): { rows: Map<string, T> | null; error: string } {
   const [rows, setRows] = useState<Map<string, T> | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
     let live = true;
-    api<T[]>('GET', path)
-      .then((list) => live && setRows(new Map(list.map((r) => [r.slot ? `${r.date}|${r.slot}` : r.date, r]))))
+    const load = () => api<T[]>('GET', path)
+      .then((list) => live && (setError(''), setRows(new Map(list.map((r) => [r.slot ? `${r.date}|${r.slot}` : r.date, r])))))
       .catch((err: Error) => live && setError(err.message));
-    return () => { live = false; };
+    load();
+    const t = setInterval(load, 10000);
+    return () => { live = false; clearInterval(t); };
   }, [path]);
   return { rows, error };
 }
@@ -79,7 +81,7 @@ export function ChartMarketsScreen({ onBack, onPick }: NavProps & { onPick: (m: 
   );
 }
 
-/** A result counts as "pending" (**) until its time has passed; future days stay blank. */
+/** Future days stay blank; a day without a declared result shows stars. */
 function dayState(date: Date, today: Date): 'past' | 'today' | 'future' {
   const a = isoDate(date), b = isoDate(today);
   return a < b ? 'past' : a === b ? 'today' : 'future';
@@ -150,8 +152,10 @@ export function PanelChartScreen({ market, now, onBack }: NavProps & { market: M
                 <td className="date">{range(monday)}</td>
                 {days.map((d) => {
                   const state = dayState(d, now);
-                  if (state === 'future' || (state === 'today' && mins < toMinutes(market.open))) return <td key={isoDate(d)} />;
                   const r = result(d);
+                  // A declared result always shows; an undeclared day stays blank until its market opens.
+                  const declared = !!(r.open || r.close);
+                  if (state === 'future' || (state === 'today' && !declared && mins < toMinutes(market.open))) return <td key={isoDate(d)} />;
                   const open = r.open ? ankOf(r.open) : undefined;
                   const close = r.close ? ankOf(r.close) : undefined;
                   const j = jodiOf(r);
@@ -177,8 +181,6 @@ export function PanelChartScreen({ market, now, onBack }: NavProps & { market: M
 // ---------- Starline / Disawar history tables ----------
 const lastDays = (now: Date) => Array.from({ length: DAYS }, (_, i) => addDays(now, -i));
 const slotHead = (s: string) => { const [t, ap] = s.split(' '); return <>{t}<br />{ap}</>; };
-const slotPassed = (date: Date, slot: string, now: Date) =>
-  dayState(date, now) === 'past' || (dayState(date, now) === 'today' && now.getHours() * 60 + now.getMinutes() >= toMinutes(slot));
 
 export function StarlineChartScreen({ now, onBack }: NavProps & { now: Date }) {
   const { rows, error } = useRows<{ date: string; slot: string; pana: string }>(
@@ -194,7 +196,7 @@ export function StarlineChartScreen({ now, onBack }: NavProps & { now: Date }) {
               <tr key={isoDate(d)}>
                 <td className="date">{showDate(isoDate(d))}</td>
                 {STARLINE_SLOTS.map((s) => {
-                  const p = slotPassed(d, s, now) ? rows?.get(`${isoDate(d)}|${s}`)?.pana : undefined;
+                  const p = rows?.get(`${isoDate(d)}|${s}`)?.pana;
                   return (
                     <td key={s} className="sl">
                       {p ? <><b>{ankOf(p)}</b><small>{p}</small></> : <><i>*</i><i className="sm">***</i></>}
@@ -224,7 +226,7 @@ export function DisawarChartScreen({ now, onBack }: NavProps & { now: Date }) {
               <tr key={isoDate(d)}>
                 <td className="date">{showDate(isoDate(d))}</td>
                 {DISAWAR_SLOTS.map((s) => {
-                  const j = slotPassed(d, s, now) ? rows?.get(`${isoDate(d)}|${s}`)?.jodi : undefined;
+                  const j = rows?.get(`${isoDate(d)}|${s}`)?.jodi;
                   return <td key={s} className="dw">{j ? <b>{j}</b> : <i>**</i>}</td>;
                 })}
               </tr>

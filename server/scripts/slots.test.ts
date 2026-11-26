@@ -126,6 +126,28 @@ const rows = (await api('GET', '/api/slot-bids', undefined, user)).data as any[]
 check('reverted bids show as reverted in the user history', rows.filter((b) => b.slot === '3:00 PM' && b.status === 'reverted').length === 2);
 check('refunds are recorded in the passbook', (await api('GET', '/api/passbook', undefined, user)).data.some((t: any) => /Refund: Starline 3:00 PM/.test(t.remark)));
 
+// ---------- charts: every declared result is stored per day and shows right away ----------
+const from = '2026-11-01', to = '2026-11-30';
+const markets = (await api('GET', '/api/markets')).data as any[];
+const kalyan = markets.find((m) => m.name === 'Kalyan');
+await api('POST', '/api/admin/results', { marketId: kalyan.id, date: DATE, session: 'open', pana: '128' }, adm);
+let chart = (await api('GET', `/api/charts/market/${kalyan.id}?from=${from}&to=${to}`)).data as any[];
+check('market chart shows the open result as soon as it is declared', chart.length === 1 && chart[0].date === DATE && chart[0].open === '128' && chart[0].close === null);
+await api('POST', '/api/admin/results', { marketId: kalyan.id, date: DATE, session: 'close', pana: '235' }, adm);
+await api('POST', '/api/admin/results', { marketId: kalyan.id, date: '2026-11-18', session: 'open', pana: '123' }, adm);
+chart = (await api('GET', `/api/charts/market/${kalyan.id}?from=${from}&to=${to}`)).data as any[];
+check('market chart keeps every day', chart.length === 2 && chart.find((c) => c.date === DATE).close === '235');
+await api('POST', '/api/admin/starline', { date: DATE, slot: '4:00 PM', pana: '246' }, adm);
+await api('POST', '/api/admin/starline', { date: '2026-11-18', slot: '10:00 AM', pana: '137' }, adm);
+chart = (await api('GET', `/api/charts/starline?from=${from}&to=${to}`)).data as any[];
+check('starline chart stores each day and slot', chart.some((c) => c.date === DATE && c.slot === '4:00 PM' && c.pana === '246') && chart.some((c) => c.date === '2026-11-18' && c.slot === '10:00 AM'));
+await api('POST', '/api/admin/disawar', { date: DATE, slot: '5:30 PM', jodi: '58' }, adm);
+chart = (await api('GET', `/api/charts/disawar?from=${from}&to=${to}`)).data as any[];
+check('jackpot (disawar) chart stores each result', chart.some((c) => c.slot === '5:30 PM' && c.jodi === '58') && chart.some((c) => c.slot === '5:00 PM' && c.jodi === '47'));
+await api('POST', '/api/admin/starline', { date: DATE, slot: '4:00 PM', pana: '255' }, adm);
+chart = (await api('GET', `/api/charts/starline?from=${from}&to=${to}`)).data as any[];
+check('correcting a result updates the chart', chart.filter((c) => c.slot === '4:00 PM').length === 1 && chart.find((c) => c.slot === '4:00 PM').pana === '255');
+
 // ---------- blocked users ----------
 await api('PATCH', `/api/admin/users/${uid}`, { betting: false }, adm);
 check('betting-blocked user cannot bid on slots', (await place({ kind: 'jackpot', slot: '6:30 PM', game: 'Jodi', bids: [{ number: '12', points: 10 }] })).status === 403);

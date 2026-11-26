@@ -19,6 +19,7 @@ import { SettingsScreen } from './settings';
 import { GamePlayScreen } from './play';
 import { BidHistoryScreen, PassbookScreen } from './history';
 import { SlotGamesScreen, SlotPlayScreen, SlotsScreen } from './slots';
+import { LiveChatScreen } from './livechat';
 import QuizApp from './quiz';
 import { Banner, HowToPlayScreen, NoticeScreen } from './content';
 import {
@@ -259,6 +260,7 @@ export default function App() {
     case 'timetable': screen = <TimeTableScreen onBack={back} />; break;
     case 'settings': screen = <SettingsScreen onBack={back} />; break;
     case 'Bid History': screen = <BidHistoryScreen onBack={() => go('bids')} />; break;
+    case 'livechat': screen = <LiveChatScreen onBack={back} />; break;
     case 'passbook': screen = <PassbookScreen onBack={back} />; break;
     case 'howtoplay': screen = <HowToPlayScreen onBack={back} />; break;
     case 'notice': screen = <NoticeScreen onBack={back} />; break;
@@ -276,7 +278,7 @@ export default function App() {
         onNavigate={go}
         onLogout={logout}
       />
-      {support && <SupportModal onClose={() => setSupport(false)} />}
+      {support && <SupportModal onClose={() => setSupport(false)} onChat={() => { setSupport(false); go('livechat'); }} />}
       {closed && <ClosedModal onClose={() => setClosed(false)} />}
     </AppDataContext.Provider>
   );

@@ -295,6 +295,25 @@ route('GET', '/api/slot-bids', (ctx) => {
     FROM slot_bids WHERE user_id = ? ORDER BY id DESC LIMIT 300`).all(user.id);
 });
 
+// ---------- live support chat ----------
+const CHAT_MAX = 1000;
+const CHAT_BURST = 20; // messages per 5 minutes per user
+
+route('GET', '/api/support/messages', (ctx) => {
+  const user = activeUser(ctx);
+  db.prepare("UPDATE support_messages SET seen = 1 WHERE user_id = ? AND sender = 'admin' AND seen = 0").run(user.id);
+  const rows = db.prepare('SELECT id, sender, text, created_at AS at FROM support_messages WHERE user_id = ? ORDER BY id DESC LIMIT 200').all(user.id);
+  return rows.reverse();
+});
+
+route('POST', '/api/support/messages', (ctx) => {
+  const user = activeUser(ctx);
+  const text = str(ctx.body.text, 'Message', CHAT_MAX);
+  const recent = (db.prepare("SELECT COUNT(*) AS n FROM support_messages WHERE user_id = ? AND sender = 'user' AND created_at > datetime('now', 'localtime', '-5 minutes')").get(user.id) as { n: number }).n;
+  if (recent >= CHAT_BURST) throw new HttpError(429, 'You are sending messages too fast. Please wait a moment.');
+  return db.prepare("INSERT INTO support_messages (user_id, sender, text) VALUES (?, 'user', ?) RETURNING id, sender, text, created_at AS at").get(user.id, text);
+});
+
 /** Messages written by the admin, newest first. */
 route('GET', '/api/notifications', (ctx) => {
   activeUser(ctx);

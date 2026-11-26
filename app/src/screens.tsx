@@ -6,7 +6,7 @@ import {
 import type { Go, LucideIcon } from './types';
 import { useAppData } from './appdata';
 import { api, type AppNotification } from './api';
-import { telLink, whatsappLink } from './content';
+import { whatsappLink } from './content';
 
 interface PageHeaderProps {
   title: string;
@@ -131,17 +131,18 @@ export function PlaceholderScreen({ title, onBack }: { title: string; onBack: ()
 }
 
 /** Opens the admin's phone/WhatsApp; shows "Not available" when the admin hasn't set that number. */
-function ContactRow({ href, className, label }: { href: string; className: string; label: string }) {
+function ContactRow({ href, className, label, onClick }: { href?: string; className: string; label: string; onClick?: () => void }) {
   const inner = <>
     <span className={`modal-icon ${className}`}><MessageSquareText size={28} /></span>
-    <b>{label}{!href && <small className="na">Not available</small>}</b><ChevronRight size={22} />
+    <b>{label}{!href && !onClick && <small className="na">Not available</small>}</b><ChevronRight size={22} />
   </>;
+  if (onClick) return <button className="modal-row" onClick={onClick}>{inner}</button>;
   return href
     ? <a className="modal-row" href={href} target="_blank" rel="noreferrer">{inner}</a>
     : <button className="modal-row" disabled>{inner}</button>;
 }
 
-export function SupportModal({ onClose }: { onClose: () => void }) {
+export function SupportModal({ onClose, onChat }: { onClose: () => void; onChat: () => void }) {
   const { settings } = useAppData();
   return (
     <div className="overlay center" onClick={onClose}>
@@ -152,7 +153,7 @@ export function SupportModal({ onClose }: { onClose: () => void }) {
           <button className="modal-x" onClick={onClose} aria-label="Close"><X size={22} /></button>
         </div>
         {settings.texts.support && <p className="modal-note">{settings.texts.support}</p>}
-        <ContactRow href={telLink(settings.phone)} className="live" label="Live Chat" />
+        <ContactRow onClick={onChat} className="live" label="Live Chat" />
         <ContactRow href={whatsappLink(settings.whatsapp)} className="wa" label="WhatsApp Support" />
       </div>
     </div>
