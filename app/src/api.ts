@@ -52,6 +52,8 @@ export interface Rates { single: number; jodi: number; sp: number; dp: number; t
 export interface UpiConfig {
   enabled: boolean;
   vpa: string;
+  /** The payee's mobile number, shown to the customer; links still pay the VPA. */
+  mobile: string;
   name: string;
   note: string;
   minDeposit: number;

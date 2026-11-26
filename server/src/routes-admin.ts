@@ -200,7 +200,7 @@ route('GET', '/api/admin/bids', (ctx) => {
 
 // ---------- settings ----------
 const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'app_mode', 'quiz_timer',
-  'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw', 'trust_title', 'trust_note'] as const;
+  'pay_mobile', 'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw', 'trust_title', 'trust_note'] as const;
 const LONG_TEXT = ['how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'trust_note'];
 const MAX_SLIDERS = 10;
 
@@ -223,6 +223,15 @@ route('PUT', '/api/admin/settings', (ctx) => {
     if (k === 'upi_enabled' && v !== '0' && v !== '1') throw new HttpError(400, 'UPI status must be on or off');
     if (['min_deposit', 'min_withdraw'].includes(k) && (!/^\d+$/.test(v) || Number(v) < 1)) {
       throw new HttpError(400, `${k === 'min_deposit' ? 'Minimum deposit' : 'Minimum withdrawal'} must be a number of at least 1`);
+    }
+    if (k === 'pay_mobile') {
+      // The app pays a VPA, so the number is turned into <number>@<same handle as the saved UPI ID>.
+      const digits = v.replace(/\D/g, '');
+      if (digits && !/^[6-9]\d{9}$/.test(digits)) throw new HttpError(400, 'Payee mobile number must be a 10-digit Indian number');
+      updates.push([k, digits]);
+      const handle = cleanVpa(getSetting('upi_id')).split('@')[1] || '';
+      if (digits && handle && b.upi_id === undefined) updates.push(['upi_id', `${digits}@${handle}`]);
+      continue;
     }
     if (k === 'trust_note' && v.split('\n').filter((line) => line.trim()).length > 5) {
       throw new HttpError(400, 'Up to 5 trust and security messages (one per line)');

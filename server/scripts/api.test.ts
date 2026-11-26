@@ -287,6 +287,14 @@ check('old admin password no longer works', (await api('POST', '/api/admin/login
   r = await api('PUT', '/api/admin/settings', { upi_id: 'not-a-vpa' }, adm);
   check('bad UPI ID rejected by the admin settings', r.status === 400);
 
+  r = await api('PUT', '/api/admin/settings', { pay_mobile: '87780 90684' }, adm);
+  check('admin saves the payee mobile number', r.status === 200);
+  r = await api('GET', '/api/settings');
+  check('the UPI address is rebuilt from that number, keeping the handle', r.data.upi.mobile === '8778090684' && r.data.upi.vpa === '8778090684@okhdfc');
+  r = await api('PUT', '/api/admin/settings', { pay_mobile: '12345' }, adm);
+  check('a bad payee mobile number is rejected', r.status === 400);
+  await api('PUT', '/api/admin/settings', { pay_mobile: '', upi_id: 'shop@okhdfc' }, adm);
+
   const before = await bal();
   r = await api('POST', '/api/payments/upi', { amount: 500, utr: '123456789012' }, user);
   check('the payer UPI ID / mobile is required', r.status === 400);

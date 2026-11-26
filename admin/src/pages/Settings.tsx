@@ -11,12 +11,15 @@ function useSettingsForm() {
   const { data, error } = useLoad<AdminSettings>('/admin/settings');
   const [edits, setEdits] = useState<Partial<Record<TextSetting, string>>>({});
   const value = (k: TextSetting) => edits[k] ?? data?.[k] ?? '';
+  // Functional updates: one handler may change two keys, and a merge into a stale snapshot drops the first.
+  const put = (patch: Partial<Record<TextSetting, string>>) => setEdits((prev) => ({ ...prev, ...patch }));
   const input = (k: TextSetting, numeric = false) => ({
     value: value(k),
     disabled: !data,
-    onChange: (e: { target: { value: string } }) => setEdits({ ...edits, [k]: numeric ? e.target.value.replace(/\D/g, '') : e.target.value }),
+    onChange: (e: { target: { value: string } }) => put({ [k]: numeric ? e.target.value.replace(/\D/g, '') : e.target.value }),
   });
-  const set = (k: TextSetting, v: string) => setEdits({ ...edits, [k]: v });
+  const set = (k: TextSetting, v: string) => put({ [k]: v });
+  const setMany = (patch: Partial<Record<TextSetting, string>>) => put(patch);
   const save = async (keys: TextSetting[], done: string) => {
     try {
       await api('PUT', '/admin/settings', Object.fromEntries(keys.map((k) => [k, value(k)])));
@@ -25,7 +28,7 @@ function useSettingsForm() {
       toast((err as Error).message);
     }
   };
-  return { input, set, save, error, value };
+  return { input, set, setMany, save, error, value };
 }
 
 // Labels in the "Add Value's" card that are connected to the app.
@@ -124,6 +127,14 @@ export function MainSettings() {
   const [slider, setSlider] = useState('on');
   const toggleDay = (d: string) => setDays((s) => { const n = new Set(s); n.has(d) ? n.delete(d) : n.add(d); return n; });
   const settings = useSettingsForm();
+  // Editing the number also rewrites the UPI address, keeping the app's links on the same account.
+  const mobileInput = settings.input('pay_mobile', true);
+  const onMobile = (e: { target: { value: string } }) => {
+    const digits = e.target.value.replace(/\D/g, '');
+    const handle = settings.value('upi_id').split('@')[1];
+    // One state update, so the number and the address can never disagree.
+    settings.setMany(handle ? { pay_mobile: digits, upi_id: `${digits}@${handle}` } : { pay_mobile: digits });
+  };
 
   return (
     <>
@@ -143,8 +154,13 @@ export function MainSettings() {
             The app builds UPI payment links from these details. The customer pays in their own UPI app and sends you the
             12-digit UTR; nothing is credited until you approve it under Wallet &rarr; Fund Request.
           </div>
-          <Field label="UPI ID (payee) *" style={{ marginBottom: 14 }}>
-            <input className="input" placeholder="shop@okhdfc" autoCapitalize="none" {...settings.input('upi_id')} />
+          <Field label="Payee mobile number *" style={{ marginBottom: 14 }}>
+            <input className="input" inputMode="numeric" maxLength={10} placeholder="9876543210" {...mobileInput} onChange={onMobile} />
+            <div className="hint">The number customers pay. The UPI ID below is rebuilt from it.</div>
+          </Field>
+          <Field label="UPI ID (built from the number)" style={{ marginBottom: 14 }}>
+            <input className="input" placeholder="9876543210@okhdfc" autoCapitalize="none" {...settings.input('upi_id')} />
+            <div className="hint">UPI apps can only pay an address, not a plain number: this is number@handle. If your number is on another app (e.g. @ybl, @okaxis), change the handle here.</div>
           </Field>
           <Field label="Payee name (shown in the UPI app)" style={{ marginBottom: 14 }}>
             <input className="input" placeholder="My Shop" {...settings.input('upi_name')} />
@@ -160,7 +176,7 @@ export function MainSettings() {
             <input type="checkbox" checked={settings.value('upi_enabled') === '1'} onChange={(e) => settings.set('upi_enabled', e.target.checked ? '1' : '0')} />
             {' '}Show UPI payment buttons in the app
           </label>
-          <button className="btn" style={{ marginTop: 14 }} onClick={() => settings.save(['upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw'], 'UPI settings saved. The app shows them within 10 seconds.')}>
+          <button className="btn" style={{ marginTop: 14 }} onClick={() => settings.save(['pay_mobile', 'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'min_deposit', 'min_withdraw'], 'UPI settings saved. The app shows them within 10 seconds.')}>
             Save UPI Settings
           </button>
           <div className="hint" style={{ marginTop: 10 }}>{settings.error}</div>

@@ -59,7 +59,7 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
   const desktop = deviceOf() === 'other';
   const pay = { vpa: upi.vpa, name: upi.name, amount: amt, note: upi.note };
   const generic = ready ? upiLink(pay, 'any') : '';
-  const mobile = payeeMobile(upi.vpa);
+  const mobile = upi.mobile || payeeMobile(upi.vpa);
 
   // The QR is desktop-only; qrcode is imported lazily so phones never download it.
   useEffect(() => {
@@ -133,7 +133,7 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
                 <div className="pay-amount">
                   <span>Pay exactly</span>
                   <b>{amountText(amt)}</b>
-                  <small>to {upi.name} · {upi.vpa}</small>
+                  <small>to {upi.name}</small>
                 </div>
 
                 <a className="auth-btn pay-primary" href={upiLink(pay, 'any')}>PAY {amountText(amt)} WITH UPI</a>
@@ -188,8 +188,10 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
                 )}
 
                 <div className="copy-list">
-                  <CopyRow label="UPI ID" value={upi.vpa} />
-                  {mobile && <CopyRow label="Mobile number" value={mobile} />}
+                  {/* Customers pay the number; the UPI address is only the technical target of the link. */}
+                  {mobile
+                    ? <CopyRow label="Mobile number" value={mobile} />
+                    : <CopyRow label="UPI ID" value={upi.vpa} />}
                   <CopyRow label="Amount" value={String(amt)} />
                 </div>
 

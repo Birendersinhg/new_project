@@ -1,5 +1,5 @@
 // Endpoints used by the user app.
-import { cleanVpa, isValidVpa } from '../../app/src/upi.ts';
+import { cleanVpa, isValidVpa, payeeMobile } from '../../app/src/upi.ts';
 import { checkPassword, hashPassword, newToken } from './auth.ts';
 import { changeBalance, db, getSetting, tx } from './db.ts';
 import { OPEN_ONLY, canonicalNumber, gameKind, getRates } from './game.ts';
@@ -252,6 +252,7 @@ function publicUpi() {
   return {
     enabled: getSetting('upi_enabled') === '1' && !!getSetting('upi_id'),
     vpa: getSetting('upi_id'),
+    mobile: getSetting('pay_mobile') || payeeMobile(getSetting('upi_id')),
     name: getSetting('upi_name') || 'Payment',
     note: getSetting('upi_note'),
     minDeposit: Number(getSetting('min_deposit')) || 1,
