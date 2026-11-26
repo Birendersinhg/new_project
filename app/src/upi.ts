@@ -98,3 +98,43 @@ export const payeeMobile = (vpa: string) => {
 
 /** ₹ with two decimals, for the "pay exactly this" text. */
 export const amountText = (amount: number) => `₹${amount.toFixed(2)}`;
+
+/**
+ * A reference the payer sees on the payment page and can quote to support, sent as `tr`.
+ * Uppercase, no vowels-only words, well under the 35-character limit UPI apps accept.
+ */
+export function paymentRef(now: number = Date.now()): string {
+  const tail = now.toString(36).slice(-6).toUpperCase();
+  const salt = Math.random().toString(36).slice(2, 4).toUpperCase();
+  return `KLN${tail}${salt}`;
+}
+
+const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+const under100 = (n: number): string =>
+  n < 20 ? ONES[n] : `${TENS[Math.floor(n / 10)]}${n % 10 ? ` ${ONES[n % 10]}` : ''}`;
+
+const under1000 = (n: number): string => {
+  const hundreds = Math.floor(n / 100);
+  const rest = n % 100;
+  return [hundreds ? `${ONES[hundreds]} Hundred` : '', rest ? under100(rest) : ''].filter(Boolean).join(' ');
+};
+
+/** "Rupees Three Hundred Only", in the Indian lakh/crore grouping. */
+export function amountInWords(amount: number): string {
+  const n = Math.floor(Math.abs(amount));
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const crore = Math.floor(n / 10000000);
+  const lakh = Math.floor((n % 10000000) / 100000);
+  const thousand = Math.floor((n % 100000) / 1000);
+  const rest = n % 1000;
+  const parts = [
+    crore ? `${under1000(crore)} Crore` : '',
+    lakh ? `${under100(lakh)} Lakh` : '',
+    thousand ? `${under100(thousand)} Thousand` : '',
+    rest ? under1000(rest) : '',
+  ].filter(Boolean);
+  return `Rupees ${parts.join(' ')} Only`;
+}

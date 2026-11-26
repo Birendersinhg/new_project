@@ -214,6 +214,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // Win amount for every 10 points played.
   rates: JSON.stringify({ single: 100, jodi: 1000, sp: 1500, dp: 3000, tp: 7000, half: 10000, full: 100000 }),
   // UPI payments. Empty UPI ID (or upi_enabled = '0') hides the pay buttons in the app.
+  pay_mobile: '',
   upi_id: '',
   upi_name: '',
   upi_note: 'Wallet top-up',

@@ -68,6 +68,8 @@ export interface AdminSettings {
   how_to_play: string; notice_board: string;
   text_home: string; text_rates: string; text_timetable: string; text_support: string; text_game: string; rates: Rates; sliders: Slider[];
   app_mode: 'gaming' | 'quiz'; quiz_timer: string;
+  /** The payee's mobile number; the app builds the UPI address from it. */
+  pay_mobile: string;
   /** UPI payee used by the app to build payment links. */
   upi_id: string; upi_name: string; upi_note: string; upi_enabled: string; min_deposit: string; min_withdraw: string;
   /** Trust and security strip on the app's Add Money page: heading + one message per line. */
