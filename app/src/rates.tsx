@@ -1,7 +1,7 @@
 import { Clock, Dice5, SquarePen, Sparkles, Trophy } from 'lucide-react';
 import { padTime } from './data';
 import { useAppData } from './appdata';
-import type { Rates } from './api';
+import type { Rates, SlotRates } from './api';
 import { PageHeader } from './screens';
 import type { LucideIcon } from './types';
 
@@ -11,7 +11,7 @@ interface RateSection {
   rates: [game: string, win: number][];
 }
 
-// Main market rates come from the admin; Starline and Gali Disawar games are not playable yet.
+// Every rate comes from the admin (Game Rates page).
 const mainRates = (r: Rates): RateSection => ({
   title: 'Game Win Ratio for All Bids',
   icon: Dice5,
@@ -26,27 +26,27 @@ const mainRates = (r: Rates): RateSection => ({
   ],
 });
 
-const OTHER_SECTIONS: RateSection[] = [
+const slotSections = (r: SlotRates): RateSection[] => [
   {
     title: 'Starline Win Ratio for All Bids',
     icon: Sparkles,
     rates: [
-      ['Single Digit', 95],
-      ['Single Pana', 1500],
-      ['Double Pana', 3000],
-      ['Triple Pana', 7000],
+      ['Single Digit', r.starSingle],
+      ['Single Pana', r.starSp],
+      ['Double Pana', r.starDp],
+      ['Triple Pana', r.starTp],
     ],
   },
   {
-    title: 'Gali Disawar Win Ratio for All Bids',
+    title: 'Jackpot (Gali Disawar) Win Ratio for All Bids',
     icon: Trophy,
-    rates: [['Jodi Digit', 950]],
+    rates: [['Jodi Digit', r.jackpotJodi]],
   },
 ];
 
 export function GameRateScreen({ onBack }: { onBack: () => void }) {
   const { settings } = useAppData();
-  const sections = [mainRates(settings.rates), ...OTHER_SECTIONS];
+  const sections = [mainRates(settings.rates), ...slotSections(settings.slotRates)];
   return (
     <div className="phone sub">
       <PageHeader title="GAME RATE" subtitle="Win Ratio for All Games" onBack={onBack} right={<SquarePen size={24} />} />

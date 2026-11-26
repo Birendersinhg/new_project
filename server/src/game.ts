@@ -116,3 +116,62 @@ function reverseWin(userId: number, amount: number, remark: string) {
   const take = Math.min(balance, amount);
   if (take > 0) changeBalance(userId, -take, remark);
 }
+
+// ---------- Starline and Jackpot (Gali Disawar) time slots ----------
+export type SlotKind = 'starline' | 'jackpot';
+export const STARLINE_SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM',
+  '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM', '10:00 PM', '11:00 PM'];
+export const JACKPOT_SLOTS = ['10:30 AM', '11:30 AM', '12:30 PM', '1:30 PM', '2:30 PM', '3:30 PM', '4:30 PM',
+  '5:00 PM', '5:30 PM', '6:30 PM', '7:30 PM', '8:30 PM', '9:30 PM', '10:30 PM', '11:30 PM'];
+export const slotsOf = (kind: SlotKind) => (kind === 'starline' ? STARLINE_SLOTS : JACKPOT_SLOTS);
+export const SLOT_GAMES: Record<SlotKind, string[]> = {
+  starline: ['Single Digit', 'Single Pana', 'Double Pana', 'Triple Pana'],
+  jackpot: ['Jodi'],
+};
+
+/** "1:30 PM" -> minutes since midnight. */
+export const slotMinutes = (slot: string): number => {
+  const [time, ap] = slot.split(' ');
+  const [h, m] = time.split(':').map(Number);
+  return ((h % 12) + (ap === 'PM' ? 12 : 0)) * 60 + m;
+};
+
+export type SlotRates = Record<'starSingle' | 'starSp' | 'starDp' | 'starTp' | 'jackpotJodi', number>;
+export const getSlotRates = (): SlotRates => JSON.parse(getSetting('slot_rates')) as SlotRates;
+
+const SLOT_RATE_KEY: Record<string, keyof SlotRates> = {
+  'Single Digit': 'starSingle', 'Single Pana': 'starSp', 'Double Pana': 'starDp', 'Triple Pana': 'starTp', Jodi: 'jackpotJodi',
+};
+
+/** Win amount for a slot bid; null while the slot has no result, 0 if it lost. `result` is the slot's pana (Starline) or jodi (Jackpot). */
+export function slotOutcome(game: string, number: string, points: number, result: string | undefined, rates: SlotRates): number | null {
+  if (!result) return null;
+  const hit = game === 'Single Digit' ? number === ankOf(result) : number === result;
+  return hit ? Math.floor((points * rates[SLOT_RATE_KEY[game]]) / 10) : 0;
+}
+
+interface SlotBidRow { id: number; user_id: number; game: string; number: string; points: number; status: string; win_amount: number }
+
+/** Brings every bid of one slot in line with its current result, paying or reversing only the difference. Run inside a transaction. */
+export function settleSlot(kind: SlotKind, date: string, slot: string): { won: number; lost: number; pending: number } {
+  const table = kind === 'starline' ? 'starline_results' : 'disawar_results';
+  const col = kind === 'starline' ? 'pana' : 'jodi';
+  const row = db.prepare(`SELECT ${col} AS value FROM ${table} WHERE date = ? AND slot = ?`).get(date, slot) as { value: string } | undefined;
+  const bids = db.prepare("SELECT id, user_id, game, number, points, status, win_amount FROM slot_bids WHERE kind = ? AND date = ? AND slot = ? AND status != 'reverted'")
+    .all(kind, date, slot) as unknown as SlotBidRow[];
+  const rates = getSlotRates();
+  const label = `${kind === 'starline' ? 'Starline' : 'Jackpot'} ${slot}`;
+  const update = db.prepare('UPDATE slot_bids SET status = ?, win_amount = ? WHERE id = ?');
+  const count = { won: 0, lost: 0, pending: 0 };
+  for (const bid of bids) {
+    const win = slotOutcome(bid.game, bid.number, bid.points, row?.value, rates);
+    const status = win === null ? 'pending' : win > 0 ? 'won' : 'lost';
+    const amount = win ?? 0;
+    count[status as keyof typeof count]++;
+    if (status === bid.status && amount === bid.win_amount) continue;
+    if (bid.win_amount > 0) reverseWin(bid.user_id, bid.win_amount, `Result corrected: ${label} ${bid.game} ${bid.number}`);
+    if (amount > 0) changeBalance(bid.user_id, amount, `Win: ${label} ${bid.game} ${bid.number}`);
+    update.run(status, amount, bid.id);
+  }
+  return count;
+}

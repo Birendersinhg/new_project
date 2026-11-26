@@ -2,7 +2,7 @@
 import { cleanVpa, isValidVpa } from '../../app/src/upi.ts';
 import { checkPassword, hashPassword, newToken } from './auth.ts';
 import { changeBalance, db, getSetting, tx } from './db.ts';
-import { OPEN_ONLY, canonicalNumber, gameKind, getRates } from './game.ts';
+import { OPEN_ONLY, SLOT_GAMES, canonicalNumber, gameKind, getRates, getSlotRates, slotMinutes, slotsOf, type SlotKind } from './game.ts';
 import { HttpError, int, mobileOf, requireAuth, route, str } from './http.ts';
 import { DEMO_OTP, OtpError, otpProvider } from './otp.ts';
 import { clock, isValidDate, isoDate, minutesOf, nowMinutes, to12h } from './time.ts';
@@ -160,6 +160,7 @@ route('GET', '/api/settings', () => ({
   minBid: Number(getSetting('min_bid')),
   maxBid: Number(getSetting('max_bid')),
   rates: getRates(),
+  slotRates: getSlotRates(),
   howToPlay: getSetting('how_to_play'),
   notice: getSetting('notice_board'),
   texts: {
@@ -225,8 +226,73 @@ route('POST', '/api/bids', (ctx) => {
 
 route('GET', '/api/bids', (ctx) => {
   const user = activeUser(ctx);
-  return db.prepare(`SELECT b.id, b.date, m.name AS market, b.game, b.session, b.number, b.points, b.status, b.win_amount AS win
+  return db.prepare(`SELECT b.id, b.date, b.created_at AS at, m.name AS market, b.game, b.session, b.number, b.points, b.status, b.win_amount AS win
     FROM bids b JOIN markets m ON m.id = b.market_id WHERE b.user_id = ? ORDER BY b.id DESC LIMIT 300`).all(user.id);
+});
+
+// ---------- Starline and Jackpot (time-slot games) ----------
+const slotKind = (v: unknown): SlotKind => {
+  if (v !== 'starline' && v !== 'jackpot') throw new HttpError(400, 'Unknown game type');
+  return v;
+};
+
+/** Today's slots with their result (if declared) and whether bids are still open, on the server clock. */
+route('GET', '/api/slots/:kind', (ctx) => {
+  activeUser(ctx);
+  const kind = slotKind(ctx.params.kind);
+  const date = isoDate(clock.now());
+  const table = kind === 'starline' ? 'starline_results' : 'disawar_results';
+  const col = kind === 'starline' ? 'pana' : 'jodi';
+  const done = new Map((db.prepare(`SELECT slot, ${col} AS value FROM ${table} WHERE date = ?`).all(date) as { slot: string; value: string }[]).map((r) => [r.slot, r.value]));
+  const now = nowMinutes();
+  return {
+    games: SLOT_GAMES[kind],
+    slots: slotsOf(kind).map((slot) => ({ slot, open: now < slotMinutes(slot), result: done.get(slot) ?? null })),
+  };
+});
+
+route('POST', '/api/slot-bids', (ctx) => {
+  const user = activeUser(ctx);
+  if (!user.betting) throw new HttpError(403, 'Bidding is blocked for your account. Please contact support.');
+  const { body } = ctx;
+  const kind = slotKind(body.kind);
+  const slot = str(body.slot, 'Time', 20);
+  if (!slotsOf(kind).includes(slot)) throw new HttpError(400, 'Select a valid time');
+  const game = str(body.game, 'Game', 40);
+  if (!SLOT_GAMES[kind].includes(game)) throw new HttpError(400, 'Unknown game');
+  if (nowMinutes() >= slotMinutes(slot)) throw new HttpError(400, `${slot} is closed. Please pick a later time.`);
+  const list = Array.isArray(body.bids) ? body.bids as { number?: unknown; points?: unknown }[] : [];
+  if (!list.length || list.length > 500) throw new HttpError(400, 'Add at least one bid');
+
+  const min = Number(getSetting('min_bid')), max = Number(getSetting('max_bid'));
+  const clean = list.map((b) => {
+    const number = canonicalNumber(gameKind(game), String(b.number ?? ''));
+    if (!number) throw new HttpError(400, `${String(b.number)} is not valid for ${game}`);
+    const points = int(b.points, 'Points');
+    if (points < min || points > max) throw new HttpError(400, `Points must be between ${min} and ${max}`);
+    return { number, points };
+  });
+  const total = clean.reduce((s, b) => s + b.points, 0);
+  const date = isoDate(clock.now());
+  const label = kind === 'starline' ? 'Starline' : 'Jackpot';
+
+  return tx(() => {
+    let balance;
+    try {
+      balance = changeBalance(user.id, -total, `Bid: ${label} ${slot} ${game} (${clean.length})`);
+    } catch {
+      throw new HttpError(400, 'Insufficient balance');
+    }
+    const insert = db.prepare('INSERT INTO slot_bids (user_id, kind, date, slot, game, number, points) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    for (const b of clean) insert.run(user.id, kind, date, slot, game, b.number, b.points);
+    return { balance, count: clean.length, total };
+  });
+});
+
+route('GET', '/api/slot-bids', (ctx) => {
+  const user = activeUser(ctx);
+  return db.prepare(`SELECT id, date, created_at AS at, kind, slot, game, number, points, status, win_amount AS win
+    FROM slot_bids WHERE user_id = ? ORDER BY id DESC LIMIT 300`).all(user.id);
 });
 
 /** Messages written by the admin, newest first. */

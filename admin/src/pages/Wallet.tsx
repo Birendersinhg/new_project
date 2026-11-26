@@ -242,10 +242,18 @@ export function BidRevert() {
   const toast = useToast();
   const { data: markets } = useLoad<AdminMarket[]>('/admin/markets');
   const [date, setDate] = useState(todayIso);
+  // One dropdown for every kind of game: "market:<id>", "starline:<time>" or "jackpot:<time>".
   const [marketId, setMarketId] = useState('');
+  const { data: starline } = useLoad<{ slots: string[] }>(`/admin/starline?date=${date}`);
+  const { data: jackpot } = useLoad<{ slots: string[] }>(`/admin/disawar?date=${date}`);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
-  const { data: bids, error, reload } = useLoad<BidReportRow[]>(marketId ? `/admin/bids?date=${date}&marketId=${marketId}` : null);
+  const [type, ...rest] = marketId.split(':');
+  const target = type === 'market' ? { marketId: Number(rest[0]) } : type === 'starline' || type === 'jackpot' ? { kind: type, slot: rest.join(':') } : null;
+  const listPath = !marketId ? null
+    : type === 'market' ? `/admin/bids?date=${date}&marketId=${rest[0]}`
+      : `/admin/slot-bids?date=${date}&kind=${type}&slot=${encodeURIComponent(rest.join(':'))}`;
+  const { data: bids, error, reload } = useLoad<BidReportRow[]>(listPath);
   const pending = (bids ?? []).filter((b) => b.status === 'pending');
   const pendingPoints = pending.reduce((s, b) => s + b.points, 0);
   const pickedPoints = pending.filter((b) => picked.has(b.id)).reduce((s, b) => s + b.points, 0);
@@ -259,7 +267,7 @@ export function BidRevert() {
     setBusy(true);
     try {
       const r = await api<{ reverted: number; points: number; users: number }>('POST', '/admin/bids/revert',
-        { marketId: Number(marketId), date, ...(ids ? { ids } : {}) });
+        { ...target, date, ...(ids ? { ids } : {}) });
       toast(`Reverted ${r.reverted} bid(s). ₹${r.points} refunded to ${r.users} user(s).`);
       setPicked(new Set());
       reload();
@@ -282,7 +290,15 @@ export function BidRevert() {
           <Field label="Game Name">
             <select className="select" value={marketId} onChange={(e) => { setMarketId(e.target.value); setPicked(new Set()); }}>
               <option value="">-- Select Game --</option>
-              {markets?.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              <optgroup label="Markets">
+                {markets?.map((m) => <option key={m.id} value={`market:${m.id}`}>{m.name}</option>)}
+              </optgroup>
+              <optgroup label="Starline">
+                {starline?.slots.map((s) => <option key={s} value={`starline:${s}`}>Starline {s}</option>)}
+              </optgroup>
+              <optgroup label="Jackpot">
+                {jackpot?.slots.map((s) => <option key={s} value={`jackpot:${s}`}>Jackpot {s}</option>)}
+              </optgroup>
             </select>
           </Field>
         </div>

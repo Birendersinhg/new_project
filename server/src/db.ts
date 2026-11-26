@@ -101,6 +101,23 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
   );
 
+  -- Bids on Starline and Jackpot (Gali Disawar) time slots; each is settled by that slot's result.
+  CREATE TABLE IF NOT EXISTS slot_bids (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    kind TEXT NOT NULL CHECK (kind IN ('starline', 'jackpot')),
+    date TEXT NOT NULL,
+    slot TEXT NOT NULL,
+    game TEXT NOT NULL,
+    number TEXT NOT NULL,
+    points INTEGER NOT NULL CHECK (points > 0),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'won', 'lost', 'reverted')),
+    win_amount INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS slot_bids_slot ON slot_bids (kind, date, slot);
+  CREATE INDEX IF NOT EXISTS slot_bids_user ON slot_bids (user_id, id);
+
   -- Messages the admin writes; shown to every user on the app's Notifications screen.
   CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY,
@@ -192,6 +209,8 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   app_mode: 'gaming',
   // Seconds allowed per quiz question (20, 25 or 30).
   quiz_timer: '20',
+  // Win amount for every 10 points played on Starline and Jackpot.
+  slot_rates: JSON.stringify({ starSingle: 95, starSp: 1500, starDp: 3000, starTp: 7000, jackpotJodi: 950 }),
   // Win amount for every 10 points played.
   rates: JSON.stringify({ single: 100, jodi: 1000, sp: 1500, dp: 3000, tp: 7000, half: 10000, full: 100000 }),
   // UPI payments. Empty UPI ID (or upi_enabled = '0') hides the pay buttons in the app.

@@ -139,3 +139,5 @@ a.call, a.number, a.modal-row { text-decoration: none; color: inherit; }
 .home-info { margin: 10px 16px 0; }
 
 .text-link { color: #1565c0; font-weight: 600; text-decoration: underline; word-break: break-all; }
+
+.slot-row { border: 0; width: 100%; text-align: left; cursor: pointer; font: inherit; }

@@ -3,7 +3,7 @@ import { ankOf, normalizePana, panaKind } from '../../app/src/matka.ts';
 import { cleanVpa, isValidVpa } from '../../app/src/upi.ts';
 import { checkPassword, hashPassword } from './auth.ts';
 import { DEFAULT_SETTINGS, changeBalance, db, getSetting, tx } from './db.ts';
-import { getRates, settle } from './game.ts';
+import { JACKPOT_SLOTS, STARLINE_SLOTS, getRates, getSlotRates, settle, settleSlot } from './game.ts';
 import { HttpError, int, requireAuth, route, str, type Ctx } from './http.ts';
 import { guardLogin, loginFailed, loginOk, startSession } from './routes-app.ts';
 import { clock, isValidDate, isValidTime, isoDate } from './time.ts';
@@ -206,7 +206,7 @@ const MAX_SLIDERS = 10;
 
 route('GET', '/api/admin/settings', (ctx) => {
   admin(ctx);
-  return { ...Object.fromEntries(EDITABLE.map((k) => [k, getSetting(k)])), rates: getRates(), sliders: JSON.parse(getSetting('sliders')) };
+  return { ...Object.fromEntries(EDITABLE.map((k) => [k, getSetting(k)])), rates: getRates(), slotRates: getSlotRates(), sliders: JSON.parse(getSetting('sliders')) };
 });
 
 route('PUT', '/api/admin/settings', (ctx) => {
@@ -250,6 +250,16 @@ route('PUT', '/api/admin/settings', (ctx) => {
     }
     updates.push(['rates', JSON.stringify(next)]);
   }
+  if (b.slotRates !== undefined) {
+    const input = b.slotRates as Record<string, unknown>;
+    const next: Record<string, number> = {};
+    for (const key of Object.keys(getSlotRates())) {
+      const n = Number(input?.[key]);
+      if (!Number.isInteger(n) || n < 1) throw new HttpError(400, `Rate for ${key} must be a whole number`);
+      next[key] = n;
+    }
+    updates.push(['slot_rates', JSON.stringify(next)]);
+  }
   if (b.sliders !== undefined) {
     if (!Array.isArray(b.sliders) || b.sliders.length > MAX_SLIDERS) throw new HttpError(400, `Up to ${MAX_SLIDERS} slider images`);
     const list = (b.sliders as { url?: unknown; order?: unknown }[]).map((s) => {
@@ -290,10 +300,7 @@ route('DELETE', '/api/admin/notifications/:id', (ctx) => {
 });
 
 // ---------- starline / disawar results (one per date + time slot) ----------
-const STARLINE_SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM',
-  '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM', '10:00 PM', '11:00 PM'];
-const DISAWAR_SLOTS = ['10:30 AM', '11:30 AM', '12:30 PM', '1:30 PM', '2:30 PM', '3:30 PM', '4:30 PM',
-  '5:00 PM', '5:30 PM', '6:30 PM', '7:30 PM', '8:30 PM', '9:30 PM', '10:30 PM', '11:30 PM'];
+const DISAWAR_SLOTS = JACKPOT_SLOTS;
 
 function slotInput(body: Record<string, unknown>, slots: string[]) {
   const date = body.date;
@@ -316,13 +323,20 @@ route('POST', '/api/admin/starline', (ctx) => {
   const { date, slot } = slotInput(ctx.body, STARLINE_SLOTS);
   const pana = normalizePana(str(ctx.body.pana, 'Pana', 3));
   if (!pana || !panaKind(pana)) throw new HttpError(400, 'Enter a valid pana');
-  db.prepare('INSERT INTO starline_results (date, slot, pana) VALUES (?, ?, ?) ON CONFLICT (date, slot) DO UPDATE SET pana = excluded.pana').run(date, slot, pana);
-  return { pana, ank: ankOf(pana) };
+  return tx(() => {
+    db.prepare('INSERT INTO starline_results (date, slot, pana) VALUES (?, ?, ?) ON CONFLICT (date, slot) DO UPDATE SET pana = excluded.pana').run(date, slot, pana);
+    return { pana, ank: ankOf(pana), settled: settleSlot('starline', date, slot) };
+  });
 });
 
 route('DELETE', '/api/admin/starline', (ctx) => {
   admin(ctx);
-  db.prepare('DELETE FROM starline_results WHERE date = ? AND slot = ?').run(ctx.query.get('date'), ctx.query.get('slot'));
+  const date = ctx.query.get('date'), slot = ctx.query.get('slot');
+  if (!isValidDate(date) || !STARLINE_SLOTS.includes(String(slot))) throw new HttpError(400, 'Invalid date or time');
+  tx(() => {
+    db.prepare('DELETE FROM starline_results WHERE date = ? AND slot = ?').run(date, slot);
+    settleSlot('starline', date, String(slot));
+  });
 });
 
 route('GET', '/api/admin/disawar', (ctx) => {
@@ -337,13 +351,20 @@ route('POST', '/api/admin/disawar', (ctx) => {
   const { date, slot } = slotInput(ctx.body, DISAWAR_SLOTS);
   const jodi = String(ctx.body.jodi ?? '').trim();
   if (!/^\d{2}$/.test(jodi)) throw new HttpError(400, 'Enter a 2-digit jodi (00-99)');
-  db.prepare('INSERT INTO disawar_results (date, slot, jodi) VALUES (?, ?, ?) ON CONFLICT (date, slot) DO UPDATE SET jodi = excluded.jodi').run(date, slot, jodi);
-  return { jodi };
+  return tx(() => {
+    db.prepare('INSERT INTO disawar_results (date, slot, jodi) VALUES (?, ?, ?) ON CONFLICT (date, slot) DO UPDATE SET jodi = excluded.jodi').run(date, slot, jodi);
+    return { jodi, settled: settleSlot('jackpot', date, slot) };
+  });
 });
 
 route('DELETE', '/api/admin/disawar', (ctx) => {
   admin(ctx);
-  db.prepare('DELETE FROM disawar_results WHERE date = ? AND slot = ?').run(ctx.query.get('date'), ctx.query.get('slot'));
+  const date = ctx.query.get('date'), slot = ctx.query.get('slot');
+  if (!isValidDate(date) || !DISAWAR_SLOTS.includes(String(slot))) throw new HttpError(400, 'Invalid date or time');
+  tx(() => {
+    db.prepare('DELETE FROM disawar_results WHERE date = ? AND slot = ?').run(date, slot);
+    settleSlot('jackpot', date, String(slot));
+  });
 });
 
 // ---------- UPI deposits and withdrawals ----------
@@ -440,8 +461,47 @@ route('POST', '/api/admin/password', (ctx) => {
  * Reverts pending bids for a market/date (optionally only some ids). Bids that already won or lost
  * are left alone; the result has to be deleted first, which puts them back to pending.
  */
+/** Refunds pending Starline / Jackpot bids of one slot, all of them or only the chosen ids. */
+function revertSlotBids(body: Record<string, unknown>) {
+  const kind = body.kind;
+  if (kind !== 'starline' && kind !== 'jackpot') throw new HttpError(400, 'Unknown game type');
+  const date = body.date;
+  if (!isValidDate(date)) throw new HttpError(400, 'Select a valid date');
+  const slot = str(body.slot, 'Time', 20);
+  if (!(kind === 'starline' ? STARLINE_SLOTS : JACKPOT_SLOTS).includes(slot)) throw new HttpError(400, 'Select a valid time');
+  const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).map((id) => int(id, 'Bid')) : null;
+  if (ids && !ids.length) throw new HttpError(400, 'Select at least one bid');
+  const label = `${kind === 'starline' ? 'Starline' : 'Jackpot'} ${slot}`;
+
+  return tx(() => {
+    const bids = db.prepare("SELECT id, user_id, game, number, points FROM slot_bids WHERE kind = ? AND date = ? AND slot = ? AND status = 'pending'")
+      .all(kind, date, slot) as { id: number; user_id: number; game: string; number: string; points: number }[];
+    const chosen = ids ? bids.filter((b) => ids.includes(b.id)) : bids;
+    if (!chosen.length) throw new HttpError(400, 'No pending bids to revert');
+    const mark = db.prepare("UPDATE slot_bids SET status = 'reverted', win_amount = 0 WHERE id = ? AND status = 'pending'");
+    for (const b of chosen) {
+      mark.run(b.id);
+      changeBalance(b.user_id, b.points, `Refund: ${label} ${b.game} ${b.number} bid reverted`);
+    }
+    return { reverted: chosen.length, points: chosen.reduce((s, b) => s + b.points, 0), users: new Set(chosen.map((b) => b.user_id)).size };
+  });
+}
+
+/** Starline / Jackpot bids for one slot, in the same shape as the market bid report. */
+route('GET', '/api/admin/slot-bids', (ctx) => {
+  admin(ctx);
+  const date = ctx.query.get('date'), kind = ctx.query.get('kind'), slot = String(ctx.query.get('slot') ?? '');
+  if (!isValidDate(date)) throw new HttpError(400, 'Invalid date');
+  if (kind !== 'starline' && kind !== 'jackpot') throw new HttpError(400, 'Unknown game type');
+  return db.prepare(`SELECT b.id, u.name AS user, u.mobile, ? AS market, b.game, NULL AS session, b.number, b.points, b.status, b.win_amount AS win, b.created_at AS time
+    FROM slot_bids b JOIN users u ON u.id = b.user_id
+    WHERE b.kind = ? AND b.date = ? AND b.slot = ? ORDER BY b.id DESC LIMIT 1000`)
+    .all(`${kind === 'starline' ? 'Starline' : 'Jackpot'} ${slot}`, kind, date, slot);
+});
+
 route('POST', '/api/admin/bids/revert', (ctx) => {
   admin(ctx);
+  if (ctx.body.kind !== undefined) return revertSlotBids(ctx.body);
   const marketId = int(ctx.body.marketId, 'Game');
   const date = ctx.body.date;
   if (!isValidDate(date)) throw new HttpError(400, 'Select a valid date');

@@ -61,7 +61,9 @@ export interface BidReportRow { id: number; user: string; mobile: string; market
 export interface Stats { users: number; approved: number; unapproved: number; games: number; bidsToday: number; pointsToday: number; winsToday: number }
 export interface Rates { single: number; jodi: number; sp: number; dp: number; tp: number; half: number; full: number }
 export interface Slider { url: string; order: number }
+export interface SlotRates { starSingle: number; starSp: number; starDp: number; starTp: number; jackpotJodi: number }
 export interface AdminSettings {
+  slotRates: SlotRates;
   ticker: string; contact_phone: string; whatsapp: string; min_bid: string; max_bid: string; welcome_bonus: string;
   how_to_play: string; notice_board: string;
   text_home: string; text_rates: string; text_timetable: string; text_support: string; text_game: string; rates: Rates; sliders: Slider[];

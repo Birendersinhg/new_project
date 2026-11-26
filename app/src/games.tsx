@@ -17,7 +17,7 @@ export const GAME_TYPES: { name: string; icon: IconKind }[] = [
   { name: 'DP MOTER', icon: 'ring' },
 ];
 
-function GameIcon({ kind }: { kind: IconKind }) {
+export function GameIcon({ kind }: { kind: IconKind }) {
   const common = { width: 46, height: 46, viewBox: '0 0 48 48', fill: 'none', stroke: '#fff', strokeWidth: 2.4, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
   switch (kind) {
     case 'dot':

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, Receipt } from 'lucide-react';
-import { api, type MyBid, type PassbookRow } from './api';
+import { api, type MyBid, type PassbookRow, type SlotBid } from './api';
 import { showDate } from './results';
 import { PageHeader } from './screens';
 
@@ -11,7 +11,16 @@ export function BidHistoryScreen({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api<MyBid[]>('GET', '/bids').then(setBids).catch((err: Error) => setError(err.message));
+    // Market bids and Starline/Jackpot bids are shown together, newest first.
+    Promise.all([api<MyBid[]>('GET', '/bids'), api<SlotBid[]>('GET', '/slot-bids')])
+      .then(([market, slots]) => {
+        const slotRows: MyBid[] = slots.map((s) => ({
+          id: -s.id, at: s.at, date: s.date, market: `${s.kind === 'starline' ? 'Starline' : 'Jackpot'} ${s.slot}`,
+          game: s.game, session: null, number: s.number, points: s.points, status: s.status, win: s.win,
+        }));
+        setBids([...market, ...slotRows].sort((x, y) => (x.at < y.at ? 1 : x.at > y.at ? -1 : 0)));
+      })
+      .catch((err: Error) => setError(err.message));
   }, []);
 
   return (

@@ -248,6 +248,47 @@ const RATE_FIELDS: [keyof Rates, string][] = [
   ['tp', 'Triple Pana'], ['half', 'Half Sangam'], ['full', 'Full Sangam'],
 ];
 
+const SLOT_RATE_FIELDS: [string, string][] = [
+  ['starSingle', 'Starline Single Digit'], ['starSp', 'Starline Single Pana'], ['starDp', 'Starline Double Pana'],
+  ['starTp', 'Starline Triple Pana'], ['jackpotJodi', 'Jackpot Jodi'],
+];
+
+/** Win amount per 10 points for the Starline and Jackpot (Gali Disawar) games. */
+function SlotRatesCard() {
+  const toast = useToast();
+  const { data, error } = useLoad<AdminSettings>('/admin/settings');
+  const [edits, setEdits] = useState<Record<string, string> | null>(null);
+  const values = edits ?? (data ? Object.fromEntries(Object.entries(data.slotRates).map(([k, v]) => [k, String(v)])) : null);
+
+  const save = async () => {
+    if (!values) return;
+    try {
+      await api('PUT', '/admin/settings', { slotRates: Object.fromEntries(Object.entries(values).map(([k, v]) => [k, Number(v)])) });
+      toast('Starline and Jackpot rates saved. The app shows them right away.');
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+
+  return (
+    <Card style={{ maxWidth: 850, margin: '0 auto 24px' }}>
+      <h5 className="card-title">Starline &amp; Jackpot Rates</h5>
+      <div className="card-sub" style={{ margin: '-8px 0 16px' }}>Win amount for every 10 points played on Starline and Jackpot (Gali Disawar).</div>
+      {!values ? <div>{error || 'Loading...'}</div> : (
+        <div className="grid-2">
+          {SLOT_RATE_FIELDS.flatMap(([key, label]) => [
+            <Field key={key + 1} label={`${label} Bid`}><input className="input" value="10" readOnly /></Field>,
+            <Field key={key + 2} label={`${label} Win`}>
+              <input className="input" inputMode="numeric" value={values[key]} onChange={(e) => setEdits({ ...values, [key]: e.target.value.replace(/\D/g, '') })} />
+            </Field>,
+          ])}
+        </div>
+      )}
+      <button className="btn" style={{ marginTop: 22, padding: '10px 28px' }} disabled={!values} onClick={save}>Submit</button>
+    </Card>
+  );
+}
+
 export function GameRates() {
   const toast = useToast();
   const { data, error } = useLoad<AdminSettings>('/admin/settings');
@@ -282,6 +323,7 @@ export function GameRates() {
         )}
         <button className="btn" style={{ marginTop: 22, padding: '10px 28px' }} disabled={!values} onClick={save}>Submit</button>
       </Card>
+      <SlotRatesCard />
     </>
   );
 }

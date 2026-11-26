@@ -4,7 +4,7 @@ import {
   Gavel, ScrollText, Home, Headphones,
 } from 'lucide-react';
 import { isRunning, resultText, type Market } from './data';
-import { api, getToken, setToken, setUnauthorizedHandler, type Me, type PublicSettings } from './api';
+import { api, getToken, setToken, setUnauthorizedHandler, type Me, type PublicSettings, type SlotKind } from './api';
 import { AppDataContext, useAppData, type AppData } from './appdata';
 import type { Go, LucideIcon, View } from './types';
 import Auth from './Auth';
@@ -18,6 +18,7 @@ import { GameRateScreen, TimeTableScreen } from './rates';
 import { SettingsScreen } from './settings';
 import { GamePlayScreen } from './play';
 import { BidHistoryScreen, PassbookScreen } from './history';
+import { SlotGamesScreen, SlotPlayScreen, SlotsScreen } from './slots';
 import QuizApp from './quiz';
 import { Banner, HowToPlayScreen, NoticeScreen } from './content';
 import {
@@ -96,8 +97,8 @@ function HomeScreen({ now, balance, mobile, go, onMenu, onSupport, onMarket, onC
       <Banner />
       {settings.texts.home && <div className="info-box home-info">{settings.texts.home}</div>}
       <div className="top-actions">
-        <button className="pill-btn"><PlayCircle size={30} /> STARLINE</button>
-        <button className="pill-btn bright"><PlayCircle size={30} /> JACKPOT</button>
+        <button className="pill-btn" onClick={() => go('starline')}><PlayCircle size={30} /> STARLINE</button>
+        <button className="pill-btn bright" onClick={() => go('jackpot')}><PlayCircle size={30} /> JACKPOT</button>
       </div>
       <div className="contact">
         <span className="call"><Phone size={20} fill="#fff" /></span>
@@ -140,6 +141,10 @@ export default function App() {
   const [chartMarket, setChartMarket] = useState<Market | null>(null);
   const [chartFrom, setChartFrom] = useState<'home' | 'chartmarkets'>('chartmarkets');
   const [now, setNow] = useState(new Date());
+  const [slotKind, setSlotKind] = useState<SlotKind>('starline');
+  const [slot, setSlot] = useState('');
+  const [slotGames, setSlotGames] = useState<string[]>([]);
+  const [slotGame, setSlotGame] = useState('');
 
   const signOut = useCallback(() => {
     setToken(null);
@@ -222,6 +227,21 @@ export default function App() {
       break;
     case 'play':
       screen = market ? <GamePlayScreen key={`${market.id}-${game}`} market={market} game={game} now={now} balance={balance} onBack={() => go('games')} onAddMoney={() => go('addmoney')} /> : null;
+      break;
+    case 'starline': case 'jackpot': {
+      const kind: SlotKind = view === 'jackpot' ? 'jackpot' : 'starline';
+      screen = <SlotsScreen kind={kind} onBack={back} onPick={(s, games) => {
+        setSlotKind(kind); setSlot(s); setSlotGames(games);
+        if (games.length === 1) { setSlotGame(games[0]); go('slotplay'); } else go('slotgames');
+      }} />;
+      break;
+    }
+    case 'slotgames':
+      screen = <SlotGamesScreen kind={slotKind} slot={slot} games={slotGames} onBack={() => go(slotKind)} onPick={(g) => { setSlotGame(g); go('slotplay'); }} />;
+      break;
+    case 'slotplay':
+      screen = <SlotPlayScreen key={`${slotKind}-${slot}-${slotGame}`} kind={slotKind} slot={slot} game={slotGame} balance={balance}
+        onBack={() => go(slotGames.length === 1 ? slotKind : 'slotgames')} onAddMoney={() => go('addmoney')} />;
       break;
     case 'chart': screen = <ChartHubScreen onBack={back} onOpen={go} />; break;
     case 'chartmarkets':

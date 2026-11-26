@@ -59,7 +59,7 @@ export interface UpiConfig {
 }
 
 export interface PublicSettings {
-  ticker: string; phone: string; whatsapp: string; minBid: number; maxBid: number; rates: Rates;
+  ticker: string; phone: string; whatsapp: string; minBid: number; maxBid: number; rates: Rates; slotRates: SlotRates;
   howToPlay: string; notice: string; sliders: string[];
   /** Short admin-written messages for individual screens; empty means hidden. */
   texts: { home: string; rates: string; timetable: string; support: string; game: string };
@@ -89,6 +89,11 @@ export interface WithdrawRow {
 }
 
 export interface MyPayments { deposits: DepositRow[]; withdrawals: WithdrawRow[] }
+export type SlotKind = 'starline' | 'jackpot';
+/** Today's Starline/Jackpot time slots: `open` is decided by the server clock, `result` is the pana (Starline) or jodi (Jackpot). */
+export interface SlotList { games: string[]; slots: { slot: string; open: boolean; result: string | null }[] }
+export interface SlotBid { id: number; date: string; at: string; kind: SlotKind; slot: string; game: string; number: string; points: number; status: 'pending' | 'won' | 'lost' | 'reverted'; win: number }
+export interface SlotRates { starSingle: number; starSp: number; starDp: number; starTp: number; jackpotJodi: number }
 export interface AppNotification { id: number; title: string; message: string; at: string }
 export interface PassbookRow { id: number; at: string; amount: number; balance: number; remark: string }
-export interface MyBid { id: number; date: string; market: string; game: string; session: string | null; number: string; points: number; status: 'pending' | 'won' | 'lost' | 'reverted'; win: number }
+export interface MyBid { id: number; at: string; date: string; market: string; game: string; session: string | null; number: string; points: number; status: 'pending' | 'won' | 'lost' | 'reverted'; win: number }

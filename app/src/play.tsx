@@ -26,7 +26,7 @@ interface PickerProps {
 }
 
 /** Tappable grid of valid numbers; panas are grouped by ank and the list narrows as you type. */
-function NumberPicker({ options, value, grouped, multi, onPick }: PickerProps) {
+export function NumberPicker({ options, value, grouped, multi, onPick }: PickerProps) {
   const norm = normalizePana(value);
   const shown = multi || !value ? options : options.filter((o) => o.startsWith(value) || o === norm);
   const chip = (n: string) => (

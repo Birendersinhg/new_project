@@ -3,7 +3,7 @@ import { Zap, Globe, Smartphone, PlayCircle, Gift, UserPlus, CreditCard, Refresh
 import { PageHeader, Card, Field, DataTable, Modal, useDemo, useToast } from '../ui';
 import { api, useLoad, type AdminSettings, type Slider } from '../api';
 
-type TextSetting = Exclude<keyof AdminSettings, 'rates' | 'sliders'>;
+type TextSetting = Exclude<keyof AdminSettings, 'rates' | 'slotRates' | 'sliders'>;
 
 /** Settings that the app reads live from the server; edited here and saved with one PUT. */
 function useSettingsForm() {
