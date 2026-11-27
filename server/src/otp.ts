@@ -1,6 +1,6 @@
 // Sends and checks registration OTPs.
 // With MC_CUSTOMER_ID + MC_PASSWORD set, real SMS goes out through Message Central VerifyNow
-// (https://www.messagecentral.com, free test credits on signup). Without them, test mode: no SMS, code 123456.
+// (https://www.messagecentral.com, free test credits on signup). Without them, or with OTP_MODE=fixed, test mode: no SMS, code 123456.
 
 export const DEMO_OTP = '123456';
 const BASE = 'https://cpaas.messagecentral.com';
@@ -91,7 +91,9 @@ function messageCentral(customerId: string, password: string | undefined, static
 
 /** Picks the provider from the environment once, at startup. */
 export function createOtpProvider(env: NodeJS.ProcessEnv = process.env): OtpProvider {
-  const { MC_CUSTOMER_ID, MC_PASSWORD, MC_AUTH_TOKEN } = env;
+  const { MC_CUSTOMER_ID, MC_PASSWORD, MC_AUTH_TOKEN, OTP_MODE } = env;
+  // OTP_MODE=fixed: no SMS is sent and the code is always 123456 (saves SMS credits); the SMS keys can stay in .env.
+  if (OTP_MODE === 'fixed') return demoProvider;
   if (!MC_CUSTOMER_ID || (!MC_PASSWORD && !MC_AUTH_TOKEN)) return demoProvider;
   return messageCentral(MC_CUSTOMER_ID, MC_PASSWORD || undefined, MC_AUTH_TOKEN || undefined);
 }

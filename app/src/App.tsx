@@ -260,6 +260,8 @@ export default function App() {
     case 'timetable': screen = <TimeTableScreen onBack={back} />; break;
     case 'settings': screen = <SettingsScreen onBack={back} />; break;
     case 'Bid History': screen = <BidHistoryScreen onBack={() => go('bids')} />; break;
+    case 'Starline Bid History': screen = <BidHistoryScreen kind="starline" onBack={() => go('bids')} />; break;
+    case 'Disawar Bid History': screen = <BidHistoryScreen kind="jackpot" onBack={() => go('bids')} />; break;
     case 'livechat': screen = <LiveChatScreen onBack={back} />; break;
     case 'passbook': screen = <PassbookScreen onBack={back} />; break;
     case 'howtoplay': screen = <HowToPlayScreen onBack={back} />; break;

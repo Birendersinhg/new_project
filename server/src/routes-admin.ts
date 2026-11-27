@@ -543,16 +543,21 @@ function revertSlotBids(body: Record<string, unknown>) {
   });
 }
 
-/** Starline / Jackpot bids for one slot, in the same shape as the market bid report. */
+/** Starline / Jackpot bids in the same shape as the market bid report: for one date, optionally narrowed to a kind and a slot. */
 route('GET', '/api/admin/slot-bids', (ctx) => {
   admin(ctx);
-  const date = ctx.query.get('date'), kind = ctx.query.get('kind'), slot = String(ctx.query.get('slot') ?? '');
+  const date = ctx.query.get('date'), kind = ctx.query.get('kind'), slot = ctx.query.get('slot');
   if (!isValidDate(date)) throw new HttpError(400, 'Invalid date');
-  if (kind !== 'starline' && kind !== 'jackpot') throw new HttpError(400, 'Unknown game type');
-  return db.prepare(`SELECT b.id, u.name AS user, u.mobile, ? AS market, b.game, NULL AS session, b.number, b.points, b.status, b.win_amount AS win, b.created_at AS time
+  if (kind && kind !== 'starline' && kind !== 'jackpot') throw new HttpError(400, 'Unknown game type');
+  const where = ['b.date = ?'];
+  const args: string[] = [date];
+  if (kind) { where.push('b.kind = ?'); args.push(kind); }
+  if (slot) { where.push('b.slot = ?'); args.push(slot); }
+  return db.prepare(`SELECT b.id, u.name AS user, u.mobile,
+      CASE b.kind WHEN 'starline' THEN 'Starline ' ELSE 'Jackpot ' END || b.slot AS market,
+      b.game, NULL AS session, b.number, b.points, b.status, b.win_amount AS win, b.created_at AS time
     FROM slot_bids b JOIN users u ON u.id = b.user_id
-    WHERE b.kind = ? AND b.date = ? AND b.slot = ? ORDER BY b.id DESC LIMIT 1000`)
-    .all(`${kind === 'starline' ? 'Starline' : 'Jackpot'} ${slot}`, kind, date, slot);
+    WHERE ${where.join(' AND ')} ORDER BY b.id DESC LIMIT 1000`).all(...args);
 });
 
 route('POST', '/api/admin/bids/revert', (ctx) => {

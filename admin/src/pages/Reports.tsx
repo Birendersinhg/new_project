@@ -14,7 +14,12 @@ export function BidHistory() {
   const [date, setDate] = useState(todayIso);
   const [marketId, setMarketId] = useState('');
   const [type, setType] = useState('All');
-  const { data: bids, error } = useLoad<BidReportRow[]>(`/admin/bids?date=${date}${marketId ? `&marketId=${marketId}` : ''}`);
+  // "All Games" lists market, Starline and Jackpot bids together; "starline" / "jackpot" narrow to one of those.
+  const isSlot = marketId === 'starline' || marketId === 'jackpot';
+  const { data: marketBids, error } = useLoad<BidReportRow[]>(isSlot ? null : `/admin/bids?date=${date}${marketId ? `&marketId=${marketId}` : ''}`);
+  const { data: slotBids } = useLoad<BidReportRow[]>(marketId === '' || isSlot ? `/admin/slot-bids?date=${date}${isSlot ? `&kind=${marketId}` : ''}` : null);
+  const loaded = isSlot ? slotBids : marketId === '' ? (marketBids && slotBids ? [...marketBids, ...slotBids].sort((a, b) => (a.time < b.time ? 1 : -1)) : null) : marketBids;
+  const bids = loaded;
   const rows = (bids ?? []).filter((b) => type === 'All' || b.game === type);
   const total = rows.reduce((s, b) => s + b.points, 0);
   return (
@@ -26,6 +31,8 @@ export function BidHistory() {
           <Field label="Game Name">
             <select className="select" value={marketId} onChange={(e) => setMarketId(e.target.value)}>
               <option value="">All Games</option>
+              <option value="starline">Starline (all times)</option>
+              <option value="jackpot">Jackpot / Disawar (all times)</option>
               {markets?.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </Field>

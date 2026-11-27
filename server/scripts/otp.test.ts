@@ -48,6 +48,9 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
 
 // ---------- tests ----------
 check('no keys -> test mode', createOtpProvider({}).demo === true);
+check('OTP_MODE=fixed -> test mode even with SMS keys', createOtpProvider({ OTP_MODE: 'fixed', MC_CUSTOMER_ID: 'C-1', MC_AUTH_TOKEN: 'tok' }).demo === true);
+check('SMS keys without OTP_MODE -> real SMS', createOtpProvider({ MC_CUSTOMER_ID: 'C-1', MC_AUTH_TOKEN: 'tok' }).demo === false);
+check('empty OTP_MODE keeps real SMS', createOtpProvider({ OTP_MODE: '', MC_CUSTOMER_ID: 'C-1', MC_AUTH_TOKEN: 'tok' }).demo === false);
 const demo = createOtpProvider({});
 check('test mode: 123456 verifies', await demo.verify('9876543210', '123456', await demo.send('9876543210')));
 check('test mode: other code fails', !(await demo.verify('9876543210', '111111', '123456')));

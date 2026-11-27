@@ -126,6 +126,17 @@ const rows = (await api('GET', '/api/slot-bids', undefined, user)).data as any[]
 check('reverted bids show as reverted in the user history', rows.filter((b) => b.slot === '3:00 PM' && b.status === 'reverted').length === 2);
 check('refunds are recorded in the passbook', (await api('GET', '/api/passbook', undefined, user)).data.some((t: any) => /Refund: Starline 3:00 PM/.test(t.remark)));
 
+// ---------- admin bid history report: all slot bids of a day, or one kind ----------
+const dayAll = (await api('GET', `/api/admin/slot-bids?date=${DATE}`, undefined, adm)).data as any[];
+const dayStar = (await api('GET', `/api/admin/slot-bids?date=${DATE}&kind=starline`, undefined, adm)).data as any[];
+const dayJack = (await api('GET', `/api/admin/slot-bids?date=${DATE}&kind=jackpot`, undefined, adm)).data as any[];
+check('admin report lists every Starline and Jackpot bid of the day', dayAll.length > 0 && dayAll.length === dayStar.length + dayJack.length, `${dayAll.length}/${dayStar.length}/${dayJack.length}`);
+check('admin report can show only Starline', dayStar.every((b) => b.market.startsWith('Starline ')) && dayStar.length > 0);
+check('admin report can show only Jackpot', dayJack.every((b) => b.market.startsWith('Jackpot ')) && dayJack.length === 2);
+check('admin report rejects an unknown game type', (await api('GET', `/api/admin/slot-bids?date=${DATE}&kind=x`, undefined, adm)).status === 400);
+const mineStar = (await api('GET', '/api/slot-bids', undefined, user)).data as any[];
+check("the user's own history separates Starline from Jackpot", mineStar.filter((b) => b.kind === 'starline').length === dayStar.length && mineStar.filter((b) => b.kind === 'jackpot').length === dayJack.length);
+
 // ---------- charts: every declared result is stored per day and shows right away ----------
 const from = '2026-11-01', to = '2026-11-30';
 const markets = (await api('GET', '/api/markets')).data as any[];
