@@ -63,7 +63,7 @@ export interface UpiConfig {
 }
 
 export interface PublicSettings {
-  ticker: string; phone: string; whatsapp: string; minBid: number; maxBid: number; rates: Rates; slotRates: SlotRates;
+  appName: string; maintenance: { on: boolean; message: string }; theme: { start: string; end: string; accent: string; bg: string }; ticker: string; phone: string; whatsapp: string; minBid: number; maxBid: number; rates: Rates; slotRates: SlotRates;
   howToPlay: string; notice: string; sliders: string[];
   /** Short admin-written messages for individual screens; empty means hidden. */
   texts: { home: string; rates: string; timetable: string; support: string; game: string };

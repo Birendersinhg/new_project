@@ -23,6 +23,8 @@ import { LiveChatScreen } from './livechat';
 import QuizApp from './quiz';
 import { useT } from './i18n';
 import { LanguageButton } from './langpicker';
+import { setTheme } from './theme';
+import { MaintenanceScreen } from './maintenance';
 import { Banner, HowToPlayScreen, NoticeScreen } from './content';
 import {
   ChartHubScreen, ChartMarketsScreen, JodiChartScreen, PanelChartScreen, StarlineChartScreen, DisawarChartScreen,
@@ -89,7 +91,7 @@ function HomeScreen({ now, balance, mobile, go, onMenu, onSupport, onMarket, onC
     <div className="phone">
       <header className="header">
         <button className="icon-btn" aria-label="Menu" onClick={onMenu}><Menu size={34} /></button>
-        <h1>Kalyan</h1>
+        <h1>{settings.appName}</h1>
         <button className="wallet" onClick={() => go('addmoney')}><Wallet size={22} /> ₹{balance.toFixed(1)}</button>
         <LanguageButton />
         <button className="icon-btn" aria-label="Notifications" onClick={() => go('notifications')}><Bell size={30} /></button>
@@ -180,6 +182,16 @@ export default function App() {
     }
   }, []);
 
+  // The colours the admin picked.
+  useEffect(() => { if (settings?.theme) setTheme(settings.theme); }, [settings?.theme.start, settings?.theme.end, settings?.theme.accent, settings?.theme.bg]);
+
+  // The browser tab title and the login screen use the name the admin set.
+  useEffect(() => {
+    if (!settings?.appName) return;
+    document.title = settings.appName;
+    try { localStorage.setItem('kalyan_app_name', settings.appName); } catch { /* not persisted */ }
+  }, [settings?.appName]);
+
   useEffect(() => {
     if (!token) return;
     load();
@@ -198,6 +210,7 @@ export default function App() {
       </div></div>
     );
   }
+  if (settings.maintenance.on) return <MaintenanceScreen message={settings.maintenance.message} onRetry={load} />;
   const balance = me.balance;
   const data: AppData = { me, markets, settings, refreshMe };
 

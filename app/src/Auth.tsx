@@ -3,6 +3,8 @@ import { User, Phone, Lock, ArrowLeft } from 'lucide-react';
 import type { LucideIcon } from './types';
 import { api } from './api';
 import { useT } from './i18n';
+import { setTheme } from './theme';
+import { MaintenanceScreen } from './maintenance';
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & { icon: LucideIcon };
 
@@ -52,6 +54,13 @@ type Step = 'details' | 'otp' | 'password';
 
 export default function Auth({ onAuthed }: { onAuthed: (token: string) => void }) {
   const t = useT();
+  // The app name is set by the admin; /settings is public, so it can be shown before login.
+  const [appName, setAppName] = useState(() => { try { return localStorage.getItem('kalyan_app_name') || 'Kalyan'; } catch { return 'Kalyan'; } });
+  const [maintenance, setMaintenance] = useState<{ on: boolean; message: string } | null>(null);
+  const loadPublic = () => api<{ appName: string; maintenance?: { on: boolean; message: string }; theme?: Parameters<typeof setTheme>[0] }>('GET', '/settings')
+    .then((s) => { if (s.appName) setAppName(s.appName); if (s.theme) setTheme(s.theme); setMaintenance(s.maintenance ?? null); })
+    .catch(() => {});
+  useEffect(() => { loadPublic(); }, []);
   const [mode, setMode] = useState<Mode>('register');
   const [step, setStep] = useState<Step>('details');
   const [form, setForm] = useState({ name: '', mobile: '', otp: '', password: '', confirm: '' });
@@ -132,10 +141,12 @@ export default function Auth({ onAuthed }: { onAuthed: (token: string) => void }
   };
   const [title, sub] = mode === 'login' ? titles.login : titles[step];
 
+  if (maintenance?.on) return <MaintenanceScreen message={maintenance.message} onRetry={loadPublic} />;
+
   return (
     <div className="phone auth">
       <div className="auth-hero">
-        <h1>Kalyan</h1>
+        <h1>{appName}</h1>
         <p>{t('Play for fun - free points only')}</p>
       </div>
 

@@ -155,6 +155,9 @@ route('GET', '/api/markets', () => {
 });
 
 route('GET', '/api/settings', () => ({
+  appName: getSetting('app_name') || 'Kalyan',
+  maintenance: { on: getSetting('maintenance_on') === '1', message: getSetting('maintenance_msg') },
+  theme: { start: getSetting('theme_start'), end: getSetting('theme_end'), accent: getSetting('theme_accent'), bg: getSetting('theme_bg') },
   ticker: getSetting('ticker'),
   phone: getSetting('contact_phone'),
   whatsapp: getSetting('whatsapp'),

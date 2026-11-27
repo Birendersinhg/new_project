@@ -34,6 +34,41 @@ r = await api('PUT', '/api/admin/settings', { whatsapp: '9000000001' }, adm);
 check('admin changes the WhatsApp number', r.status === 200 && (await api('GET', '/api/settings')).data.whatsapp === '9000000001');
 await api('PUT', '/api/admin/settings', { whatsapp: '9928821585' }, adm);
 
+// ---------- app name ----------
+check('app name defaults to Kalyan', (await api('GET', '/api/settings')).data.appName === 'Kalyan');
+r = await api('PUT', '/api/admin/settings', { app_name: '  Royal Play ' }, adm);
+check('admin renames the app', r.status === 200 && (await api('GET', '/api/settings')).data.appName === 'Royal Play');
+check('empty app name rejected', (await api('PUT', '/api/admin/settings', { app_name: '   ' }, adm)).status === 400);
+check('too long app name rejected', (await api('PUT', '/api/admin/settings', { app_name: 'x'.repeat(31) }, adm)).status === 400);
+check('a rejected name leaves the old one', (await api('GET', '/api/settings')).data.appName === 'Royal Play');
+await api('PUT', '/api/admin/settings', { app_name: 'Kalyan' }, adm);
+
+// ---------- maintenance notice ----------
+let maint = (await api('GET', '/api/settings')).data.maintenance;
+check('maintenance is off by default with a ready message', maint.on === false && /under maintenance/i.test(maint.message), JSON.stringify(maint));
+r = await api('PUT', '/api/admin/settings', { maintenance_msg: 'Back at 6 PM.', maintenance_on: '1' }, adm);
+maint = (await api('GET', '/api/settings')).data.maintenance;
+check('admin switches the maintenance notice on with a message', r.status === 200 && maint.on === true && maint.message === 'Back at 6 PM.');
+check('the login screen can see it without logging in', (await api('GET', '/api/settings')).data.maintenance.on === true);
+check('the admin panel keeps working during maintenance', (await api('GET', '/api/admin/stats', undefined, adm)).status === 200);
+check('maintenance status must be 0 or 1', (await api('PUT', '/api/admin/settings', { maintenance_on: 'maybe' }, adm)).status === 400);
+await api('PUT', '/api/admin/settings', { maintenance_on: '0' }, adm);
+check('hiding the notice opens the app again', (await api('GET', '/api/settings')).data.maintenance.on === false);
+await api('PUT', '/api/admin/settings', { maintenance_msg: 'Our app is under maintenance. We will be back very soon.' }, adm);
+
+// ---------- theme colours ----------
+let theme = (await api('GET', '/api/settings')).data.theme;
+check('theme defaults to the original red', theme.start === '#f20000' && theme.end === '#c62828' && theme.accent === '#d32f2f' && theme.bg === '#f3f1f1', JSON.stringify(theme));
+r = await api('PUT', '/api/admin/settings', { theme_start: '#0a8f4e', theme_end: '#06683a', theme_accent: '#12b886', theme_bg: '#eef7f1' }, adm);
+theme = (await api('GET', '/api/settings')).data.theme;
+check('admin changes the theme colours', r.status === 200 && theme.start === '#0a8f4e' && theme.end === '#06683a' && theme.accent === '#12b886' && theme.bg === '#eef7f1');
+check('admin settings return the saved colours', (await api('GET', '/api/admin/settings', undefined, adm)).data.theme_start === '#0a8f4e');
+check('a colour that is not hex is rejected', (await api('PUT', '/api/admin/settings', { theme_start: 'red' }, adm)).status === 400);
+check('a short hex colour is rejected', (await api('PUT', '/api/admin/settings', { theme_end: '#fff' }, adm)).status === 400);
+check('a colour with script is rejected', (await api('PUT', '/api/admin/settings', { theme_bg: '#fff;}</style>' }, adm)).status === 400);
+check('rejected colours leave the saved theme alone', (await api('GET', '/api/settings')).data.theme.start === '#0a8f4e');
+await api('PUT', '/api/admin/settings', { theme_start: '#f20000', theme_end: '#c62828', theme_accent: '#d32f2f', theme_bg: '#f3f1f1' }, adm);
+
 // ---------- user side ----------
 check('chat needs login', (await api('GET', '/api/support/messages')).status === 401);
 check('chat starts empty', (await api('GET', '/api/support/messages', undefined, ravi)).data.length === 0);

@@ -241,6 +241,16 @@ if (!bidsSql.includes("'reverted'")) {
 }
 
 export const DEFAULT_SETTINGS: Record<string, string> = {
+  // Brand colours of the app (hex); changed by the admin under Main Settings.
+  theme_start: '#f20000',
+  theme_end: '#c62828',
+  theme_accent: '#d32f2f',
+  theme_bg: '#f3f1f1',
+  // Maintenance notice: when on, the app shows this message instead of its screens.
+  maintenance_on: '0',
+  maintenance_msg: 'Our app is under maintenance. We will be back very soon.',
+  // Name shown at the top of the app.
+  app_name: 'Kalyan',
   ticker: 'PLAY FOR FUN - FREE POINTS ONLY, NO REAL MONEY',
   contact_phone: '+91 00000 00000',
   whatsapp: '9928821585',

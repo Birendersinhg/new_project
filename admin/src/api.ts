@@ -101,7 +101,7 @@ export interface Slider { url: string; order: number }
 export interface SlotRates { starSingle: number; starSp: number; starDp: number; starTp: number; jackpotJodi: number }
 export interface AdminSettings {
   slotRates: SlotRates;
-  ticker: string; contact_phone: string; whatsapp: string; min_bid: string; max_bid: string; welcome_bonus: string;
+  maintenance_on: string; maintenance_msg: string; app_name: string; theme_start: string; theme_end: string; theme_accent: string; theme_bg: string; ticker: string; contact_phone: string; whatsapp: string; min_bid: string; max_bid: string; welcome_bonus: string;
   how_to_play: string; notice_board: string;
   text_home: string; text_rates: string; text_timetable: string; text_support: string; text_game: string; rates: Rates; sliders: Slider[];
   app_mode: 'gaming' | 'quiz'; quiz_timer: string;

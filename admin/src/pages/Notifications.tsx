@@ -34,6 +34,35 @@ function FloatingText() {
   );
 }
 
+/** The name shown at the top of the app's home screen and on the login screen. */
+function AppName() {
+  const toast = useToast();
+  const { data } = useLoad<AdminSettings>('/admin/settings');
+  const [name, setName] = useState('');
+  useEffect(() => { if (data) setName(data.app_name); }, [data]);
+
+  const save = async () => {
+    try {
+      await api('PUT', '/admin/settings', { app_name: name });
+      toast('Saved. The app shows the new name within 30 seconds.');
+    } catch (err) {
+      toast((err as Error).message);
+    }
+  };
+
+  return (
+    <Card>
+      <h5 className="card-title">App Name</h5>
+      <div className="card-sub">The name at the top of the app's home screen and on the login screen. Up to 30 characters.</div>
+      <Field label="App Name">
+        <input className="input" style={{ maxWidth: 320 }} maxLength={30} placeholder="e.g. Kalyan" value={name} onChange={(e) => setName(e.target.value)} />
+      </Field>
+      <div className="hint">{name.length}/30</div>
+      <button className="btn" style={{ marginTop: 14 }} onClick={save} disabled={!name.trim()}>Save App Name</button>
+    </Card>
+  );
+}
+
 /** The WhatsApp number behind the app's Support → WhatsApp Support option. */
 function WhatsAppNumber() {
   const toast = useToast();
@@ -178,6 +207,7 @@ export function Notifications() {
   return (
     <>
       <PageHeader title="Notifications" trail="Settings" current="Notifications" />
+      <AppName />
       <FloatingText />
       <WhatsAppNumber />
       <ScreenTexts />

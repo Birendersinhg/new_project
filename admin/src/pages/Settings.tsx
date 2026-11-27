@@ -118,6 +118,83 @@ const REF_MODELS = [
 ];
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+/** A notice that replaces the whole app while the admin works on it. */
+function Maintenance() {
+  const settings = useSettingsForm();
+  const on = settings.value('maintenance_on') === '1';
+  return (
+    <Card>
+      <h5 className="card-title">App Maintenance</h5>
+      <div className="card-sub">When the status is Show, users see this message instead of the app (the login screen too). Hide it to open the app again. The admin panel keeps working.</div>
+      <div className="grid-2">
+        <Field label="App Maintenance Msg">
+          <textarea className="textarea" style={{ minHeight: 90 }} maxLength={300} placeholder="Our app is under maintenance. We will be back very soon." {...settings.input('maintenance_msg')} />
+          <div className="hint">{settings.value('maintenance_msg').length}/300</div>
+        </Field>
+        <Field label="Maintenance Msg Status">
+          <select className="select" disabled={!settings.value('maintenance_msg') && !on} value={on ? '1' : '0'} onChange={(e) => settings.set('maintenance_on', e.target.value)}>
+            <option value="0">Hide (app is open)</option>
+            <option value="1">Show (app is closed for users)</option>
+          </select>
+          <div className="hint" style={{ color: on ? 'var(--danger)' : undefined }}>{on ? 'Users cannot use the app right now.' : 'Users can use the app normally.'}</div>
+        </Field>
+      </div>
+      <button className="btn" style={{ marginTop: 14 }} disabled={on && !settings.value('maintenance_msg').trim()}
+        onClick={() => settings.save(['maintenance_msg', 'maintenance_on'], 'Saved. The app shows the change within about 30 seconds.')}>Save Maintenance Settings</button>
+    </Card>
+  );
+}
+
+const THEME_FIELDS: [key: 'theme_start' | 'theme_end' | 'theme_accent' | 'theme_bg', label: string, hint: string][] = [
+  ['theme_start', 'Primary Color (Start)', 'Headers, popups and buttons start with this colour.'],
+  ['theme_end', 'Primary Color (End)', 'Where the header and button gradients end; also used for highlighted text.'],
+  ['theme_accent', 'Button / Accent', 'Selected tabs, switches, borders and small highlights.'],
+  ['theme_bg', 'Front Background', 'Page background of the app.'],
+];
+const THEME_DEFAULTS = { theme_start: '#f20000', theme_end: '#c62828', theme_accent: '#d32f2f', theme_bg: '#f3f1f1' };
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/** Colour pickers for the app's look. A colour change shows in the app within about 30 seconds. */
+function ThemeColors() {
+  const settings = useSettingsForm();
+  const keys = THEME_FIELDS.map(([k]) => k);
+  const bad = keys.some((k) => !HEX.test(settings.value(k)));
+  const [start, end, accent, bg] = keys.map((k) => settings.value(k));
+  return (
+    <Card>
+      <h5 className="card-title">Front-End Theme Colors</h5>
+      <div className="card-sub">Pick the colours of the user app. Save, and users see the new look within about 30 seconds.</div>
+      <div className="grid-2">
+        {THEME_FIELDS.map(([key, label, hint]) => {
+          const v = settings.value(key);
+          return (
+            <Field key={key} label={label}>
+              <div className="color-row">
+                <input type="color" className="color-pick" value={HEX.test(v) ? v : '#000000'} onChange={(e) => settings.set(key, e.target.value)} />
+                <input className="input" maxLength={7} spellCheck={false} value={v} onChange={(e) => settings.set(key, e.target.value)} />
+              </div>
+              <div className="hint">{HEX.test(v) || !v ? hint : 'Use a colour like #f20000'}</div>
+            </Field>
+          );
+        })}
+      </div>
+      <div className="theme-preview" style={{ background: bg }}>
+        <div className="tp-head" style={{ background: `linear-gradient(135deg, ${start}, ${end})` }}>Header</div>
+        <div className="tp-row">
+          <span className="tp-btn" style={{ background: accent }}>Button</span>
+          <span className="tp-btn" style={{ background: `linear-gradient(135deg, ${start}, ${end})` }}>Play</span>
+          <span style={{ color: end, fontWeight: 700 }}>Highlighted text</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+        <button className="btn" disabled={bad} onClick={() => settings.save(keys, 'Theme saved. The app shows the new colours within about 30 seconds.')}>Save Theme</button>
+        <button className="btn secondary" onClick={() => keys.forEach((k) => settings.set(k, THEME_DEFAULTS[k]))}>Reset to Default</button>
+      </div>
+      <div className="hint" style={{ marginTop: 8 }}>Reset only fills the default colours in; click Save Theme to apply them.</div>
+    </Card>
+  );
+}
+
 export function MainSettings() {
   const demo = useDemo();
   const [refOn, setRefOn] = useState(false);
@@ -141,6 +218,8 @@ export function MainSettings() {
     <>
       <PageHeader title="Main Settings" trail="Settings" current="Main Settings" />
       <AdminPassword />
+      <Maintenance />
+      <ThemeColors />
       <div className="grid-2" style={{ gap: 24 }}>
         <Card style={{ marginBottom: 0 }}>
           <h5 className="card-title">Add Bank Details</h5>

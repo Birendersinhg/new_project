@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { LangProvider } from './i18n';
+import { applySavedTheme } from './theme';
 import { clearOldLocalData } from './results';
 import './styles.css';
 import './screens.css';
@@ -11,5 +12,6 @@ import './charts.css';
 import './quiz.css';
 
 clearOldLocalData();
+applySavedTheme();
 
 createRoot(document.getElementById('root') as HTMLElement).render(<LangProvider><App /></LangProvider>);

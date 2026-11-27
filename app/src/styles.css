@@ -1,7 +1,13 @@
 :root {
   --bg: #f3f1f1;
-  --red: #d32f2f;
-  --red-bright: #f50000;
+  /* Brand colours; the admin can change these (Settings -> Main Settings -> Front-End Theme Colors). */
+  --primary-start: #f20000;
+  --primary-end: #c62828;
+  --accent: #d32f2f;
+  --red: var(--accent);
+  --red-bright: var(--primary-start);
+  --tint: color-mix(in srgb, var(--primary-end) 12%, #fff);
+  --glow: color-mix(in srgb, var(--primary-start) 30%, transparent);
   --green: #2e9e1f;
   --ink: #111;
   --card-border: #dcdcdc;
@@ -28,7 +34,7 @@ button { font-family: inherit; border: 0; cursor: pointer; background: none; col
   border: 2px solid var(--red); border-radius: 10px; color: #222;
 }
 
-.ticker { overflow: hidden; white-space: nowrap; padding: 10px 0; color: #e11; font-weight: 700; font-size: 15px; }
+.ticker { overflow: hidden; white-space: nowrap; padding: 10px 0; color: var(--accent); font-weight: 700; font-size: 15px; }
 .ticker-track { display: inline-block; animation: slide 22s linear infinite; }
 @keyframes slide { to { transform: translateX(-50%); } }
 
@@ -48,7 +54,7 @@ button { font-family: inherit; border: 0; cursor: pointer; background: none; col
 .number { flex: 1; font-weight: 600; font-size: 16px; }
 .deposit {
   display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 8px;
-  background: #c62828; color: #fff; font-weight: 700; font-size: 16px;
+  background: var(--primary-end); color: #fff; font-weight: 700; font-size: 16px;
 }
 
 .list { flex: 1; padding: 6px 12px 0; }

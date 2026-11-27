@@ -219,7 +219,7 @@ route('GET', '/api/admin/bids', (ctx) => {
 });
 
 // ---------- settings ----------
-const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'app_mode', 'quiz_timer',
+const EDITABLE = ['maintenance_on', 'maintenance_msg', 'app_name', 'theme_start', 'theme_end', 'theme_accent', 'theme_bg', 'ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'app_mode', 'quiz_timer',
   'pay_mobile', 'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'auto_credit', 'payment_type', 'min_deposit', 'min_withdraw', 'trust_title', 'trust_note'] as const;
 const LONG_TEXT = ['how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'trust_note'];
 const MAX_SLIDERS = 10;
@@ -237,6 +237,9 @@ route('PUT', '/api/admin/settings', (ctx) => {
   for (const k of EDITABLE) {
     if (b[k] === undefined) continue;
     const v = String(b[k]).trim().slice(0, LONG_TEXT.includes(k) ? 5000 : 300);
+    if (k.startsWith('theme_') && !/^#[0-9a-fA-F]{6}$/.test(v)) throw new HttpError(400, 'Theme colours must look like #f20000');
+    if (k === 'maintenance_on' && v !== '0' && v !== '1') throw new HttpError(400, 'Maintenance status must be show or hide');
+    if (k === 'app_name' && (!v || v.length > 30)) throw new HttpError(400, 'App name must be 1 to 30 characters');
     if (['min_bid', 'max_bid', 'welcome_bonus'].includes(k) && !/^\d+$/.test(v)) throw new HttpError(400, `${k.replace('_', ' ')} must be a number`);
     if (k === 'app_mode' && v !== 'gaming' && v !== 'quiz') throw new HttpError(400, 'Mode must be gaming or quiz');
     if (k === 'quiz_timer' && !['20', '25', '30'].includes(v)) throw new HttpError(400, 'Quiz timer must be 20, 25 or 30 seconds');
