@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Link2 } from 'lucide-react';
-import { todayIso, useLoad, type AdminMarket, type BidReportRow } from '../api';
-import { PageHeader, Card, Field, DateInput, GameSelect, DataTable, useDemo } from '../ui';
+import { Copy, Landmark, Link2, RefreshCw, Search } from 'lucide-react';
+import {
+  api, isoDaysAgo, todayIso, useLoad,
+  type AdminAutoDeposit, type AdminDepositRow, type AdminMarket, type AdminUser, type AutoDepositFeed, type BidReportRow,
+} from '../api';
+import { PageHeader, Card, Field, DateInput, GameSelect, DataTable, Modal, useDemo, useToast } from '../ui';
 import { SINGLE_DIGITS, JODI_DIGITS, SINGLE_PANA, DOUBLE_PANA, TRIPLE_PANA, GAME_TYPES } from '../data';
 import type { Go } from '../types';
 
@@ -156,44 +159,226 @@ export function WithdrawReport() {
   );
 }
 
-interface AutoDeposit {
-  name: string;
-  phone: string;
-  amount: number;
-  date: string;
-  status: string;
-}
+const AUTO_CLASS: Record<string, string> = { credited: 'success', unmatched: 'danger', pending: 'warning', rejected: 'danger' };
+const DEPOSIT_CLASS: Record<string, string> = { pending: 'pending', approved: 'success', rejected: 'danger' };
+const clock = (t: string) => t.slice(0, 5);
 
-const AUTO_DEPOSITS: AutoDeposit[] = [];
-
+/**
+ * Payments the UPI feed delivered to the admin's UPI ID. Credited ones already topped up the
+ * customer's wallet; unmatched ones keep the payer's number so the admin can credit them.
+ */
 export function AutoDepositHistory() {
-  const demo = useDemo();
+  const toast = useToast();
+  const [from, setFrom] = useState(isoDaysAgo(6));
+  const [to, setTo] = useState(todayIso);
+  const [status, setStatus] = useState<'all' | 'credited' | 'unmatched' | 'pending' | 'rejected'>('all');
+  const [q, setQ] = useState('');
+  const [credit, setCredit] = useState<AdminAutoDeposit | null>(null);
+  const [who, setWho] = useState('');
+  const [busy, setBusy] = useState(false);
+  const { data: users } = useLoad<AdminUser[]>('/admin/users');
+  const { data: feed } = useLoad<AutoDepositFeed>('/admin/auto-deposits/feed');
+  const path = `/admin/auto-deposits?from=${from}&to=${to}${status === 'all' ? '' : `&status=${status}`}`;
+  // The feed can post a payment at any moment, so this list refreshes itself.
+  const { data: rows, error, reload } = useLoad<AdminAutoDeposit[]>(path, 15000);
+
+  const all = rows ?? [];
+  const list = all.filter((d) => `${d.userName ?? ''} ${d.userMobile ?? ''} ${d.payer ?? ''} ${d.utr}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const sum = (s: string) => all.filter((d) => d.status === s).reduce((t, d) => t + d.amount, 0);
+  const endpoint = feed ? `${location.origin}${feed.url}` : '';
+
+  const copy = (text: string, what: string) => {
+    navigator.clipboard.writeText(text).then(() => toast(`${what} copied`), () => toast('Could not copy — select it and copy by hand'));
+  };
+  const label = (u: AdminUser) => `${u.name} · ${u.mobile}`;
+
+  const doCredit = async () => {
+    if (!credit) return;
+    const user = users?.find((u) => label(u) === who.trim() || u.mobile === who.trim());
+    if (!user) return toast('Pick the customer from the list');
+    if (!confirm(`Credit ₹${credit.amount} (UTR ${credit.utr}) to ${user.name}?`)) return;
+    setBusy(true);
+    try {
+      const r = await api<{ balance: number }>('POST', `/admin/auto-deposits/${credit.id}/credit`, { userId: user.id });
+      toast(`Credited ₹${credit.amount} to ${user.name}. Balance is now ₹${r.balance}`);
+      setCredit(null);
+      setWho('');
+      reload();
+    } catch (err) {
+      toast((err as Error).message);
+    }
+    setBusy(false);
+  };
+
   return (
     <>
       <PageHeader title="Auto Deposit History" trail="Report Management" current="Auto Deposit" />
       <Card title="Filter Auto Deposits">
         <div className="row">
-          <Field label="Date" style={{ maxWidth: 300 }}><DateInput empty /></Field>
-          <button className="btn" onClick={demo('Filtered')}>Search</button>
+          <Field label="From Date"><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+          <Field label="To Date"><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+          <Field label="Status">
+            <select className="select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
+              <option value="all">All</option>
+              <option value="credited">Credited</option>
+              <option value="unmatched">Unmatched</option>
+              <option value="pending">Pending</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </Field>
+          <button className="btn" onClick={reload}><RefreshCw size={15} /> Refresh</button>
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
-          <span className="pill primary">Total Transfer: ₹ 0</span>
-          <span className="pill success">Total Approved: ₹ 0</span>
-          <span className="pill danger">Total Rejected: ₹ 0</span>
-          <span className="pill warning">Total Pending: ₹ 0</span>
+          <span className="pill primary">Payments: {all.length}</span>
+          <span className="pill success">Credited: ₹ {sum('credited')}</span>
+          <span className="pill warning">Pending: ₹ {sum('pending')}</span>
+          <span className="pill danger">Unmatched: ₹ {sum('unmatched')}</span>
         </div>
       </Card>
-      <Card title="Auto Deposit List">
-        <DataTable rows={AUTO_DEPOSITS} empty="No Auto Deposits Found" columns={[
+
+      <Card title={<span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><Landmark size={18} color="var(--primary)" /> Payment Feed</span>}>
+        <div className="card-sub" style={{ margin: '0 0 14px' }}>
+          Point your UPI payment app / bank-SMS forwarder at this URL with this key. Every payment it posts is
+          credited on its own when the payer's number is a customer's number, or when the customer already entered
+          that UTR in Add Money. Anything that cannot be matched is listed below with the payer's number.
+        </div>
+        {feed ? (
+          <div className="feed-box">
+            <div><small>POST</small><code>{endpoint}</code><button className="btn light xs" onClick={() => copy(endpoint, 'Endpoint')}><Copy size={12} /> Copy</button></div>
+            <div><small>HEADER</small><code>x-api-key: {feed.key}</code><button className="btn light xs" onClick={() => copy(feed.key, 'Key')}><Copy size={12} /> Copy</button></div>
+            <div><small>PAYEE</small><code>{feed.upi || 'Set the UPI ID in Settings first'}</code></div>
+          </div>
+        ) : <div className="hint">Loading the feed details...</div>}
+      </Card>
+
+      <Card title="Auto Deposit List" right={
+        <div className="search" style={{ width: 280 }}>
+          <Search size={15} />
+          <input className="input" placeholder="Search UTR, payer number, user..." value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+      }>
+        <DataTable rows={list} empty={error || (rows ? 'No auto deposits for these dates.' : 'Loading...')} columns={[
           { h: 'S.No.', r: (_, i) => i + 1 },
-          { h: 'User Name', r: (d) => <b>{d.name}</b> },
-          { h: 'Phone Number', r: (d) => d.phone },
-          { h: 'Amount', r: (d) => <span className="amount-plus">₹{d.amount}</span> },
-          { h: 'Date', r: (d) => d.date },
-          { h: 'Status', r: (d) => <span className="badge success">{d.status}</span> },
-          { h: 'Action', r: () => <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>Resolved</span> },
+          { h: 'Amount', r: (d) => <span className="amount-plus">₹ {d.amount}</span> },
+          { h: 'Paid From', r: (d) => d.payer ? <b style={{ fontFamily: 'monospace', letterSpacing: '.03em' }}>{d.payer}</b> : '-' },
+          { h: 'Payer Name', r: (d) => d.payerName || '-' },
+          { h: 'UTR / Ref', r: (d) => <span style={{ fontFamily: 'monospace' }}>{d.utr}</span> },
+          { h: 'User Name', r: (d) => d.userName ? <b>{d.userName} <small style={{ color: 'var(--muted)' }}>{d.userMobile}</small></b> : <i style={{ color: 'var(--muted)', fontSize: '.82rem' }}>not matched</i> },
+          { h: 'Date / Time', r: (d) => `${d.date} ${clock(d.time)}` },
+          { h: 'Status', r: (d) => <span className={'badge ' + (AUTO_CLASS[d.status] ?? '')}>{d.status}{d.remark ? <small style={{ display: 'block', opacity: .75, fontWeight: 500, whiteSpace: 'normal', maxWidth: 170, lineHeight: 1.3 }}>{d.remark}</small> : null}</span> },
+          {
+            h: 'Action', r: (d) => (d.status === 'credited' || d.status === 'rejected'
+              ? <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>Resolved</span>
+              : <button className="btn success xs" onClick={() => { setCredit(d); setWho(''); }}>Credit</button>),
+          },
         ]} />
       </Card>
+
+      {credit && (
+        <Modal title={`Credit auto deposit #${credit.id}`} onClose={() => setCredit(null)}
+          footer={<>
+            <button className="btn light" onClick={() => setCredit(null)}>Cancel</button>
+            <button className="btn success" disabled={busy} onClick={doCredit}>Credit ₹{credit.amount}</button>
+          </>}>
+          <div className="feed-box" style={{ marginBottom: 18 }}>
+            <div><small>AMOUNT</small><code>₹ {credit.amount}</code></div>
+            <div><small>PAID FROM</small><code>{credit.payer || 'not given'}</code></div>
+            <div><small>UTR</small><code>{credit.utr}</code></div>
+          </div>
+          <Field label="Credit to customer (search name or phone)">
+            <input className="input" list="auto-deposit-users" placeholder="e.g. Ravi 9876543210" value={who} onChange={(e) => setWho(e.target.value)} />
+            <datalist id="auto-deposit-users">{users?.map((u) => <option key={u.id} value={label(u)} />)}</datalist>
+          </Field>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/** Every top-up, manual claim or auto credited, with the date range and status filters. */
+export function DepositReport() {
+  const [from, setFrom] = useState(todayIso);
+  const [to, setTo] = useState(todayIso);
+  const [status, setStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [q, setQ] = useState('');
+  const [applied, setApplied] = useState({ from: todayIso(), to: todayIso(), status: 'all' as typeof status });
+  const [view, setView] = useState<AdminDepositRow | null>(null);
+  const path = `/admin/deposits?from=${applied.from}&to=${applied.to}${applied.status === 'all' ? '' : `&status=${applied.status}`}`;
+  const { data: rows, error, reload } = useLoad<AdminDepositRow[]>(path, 20000);
+
+  const all = rows ?? [];
+  const list = all.filter((r) => `${r.name} ${r.mobile} ${r.utr} ${r.payer ?? ''}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const total = list.reduce((s, r) => s + r.amount, 0);
+
+  const reset = () => {
+    setFrom(todayIso); setTo(todayIso); setStatus('all'); setQ('');
+    setApplied({ from: todayIso(), to: todayIso(), status: 'all' });
+  };
+
+  return (
+    <>
+      <PageHeader title="Deposit Report" trail="Report Management" current="Deposit Report" />
+      <Card title="Filter Deposits">
+        <div className="row">
+          <Field label="From Date"><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+          <Field label="To Date"><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+          <Field label="Status">
+            <select className="select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </Field>
+          <button className="btn info" onClick={() => setApplied({ from, to, status })}>Filter</button>
+          <button className="btn secondary" onClick={reset}>Reset</button>
+        </div>
+        <div className="total-amount">
+          <small>Total Amount</small>
+          <div>₹ {total.toFixed(2)}</div>
+        </div>
+      </Card>
+
+      <Card right={
+        <div className="search" style={{ width: 280 }}>
+          <Search size={15} />
+          <input className="input" placeholder="Search name, phone, UTR..." value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+      }>
+        <div className="row" style={{ alignItems: 'center', marginBottom: 14 }}>
+          <span style={{ color: 'var(--muted)', fontSize: '.85rem' }}>
+            Show <b style={{ color: 'var(--heading)' }}>{list.length}</b> entries · approved by the feed appear with <b>auto</b>.
+          </span>
+          <div style={{ flex: 1 }} />
+          <button className="btn light sm" onClick={reload}><RefreshCw size={13} /> Refresh</button>
+        </div>
+        <DataTable rows={list} empty={error || (rows ? 'No deposit found for these dates.' : 'Loading...')} columns={[
+          { h: '#', r: (r) => <span style={{ color: 'var(--primary)' }}>{r.id}</span> },
+          { h: 'User Name', r: (r) => <b>{r.name} <small style={{ color: 'var(--muted)' }}>{r.mobile}</small></b> },
+          { h: 'Amount', r: (r) => <span className="amount-plus">₹ {r.amount}</span> },
+          { h: 'Request No.', r: (r) => <span style={{ fontFamily: 'monospace' }}>{r.utr}</span> },
+          { h: 'Paid From', r: (r) => r.payer || '-' },
+          { h: 'Date', r: (r) => r.date },
+          { h: 'Time', r: (r) => clock(r.time) },
+          { h: 'Status', r: (r) => <span className={'badge ' + (DEPOSIT_CLASS[r.status] ?? '')}>{r.status}{r.auto ? ' · auto' : ''}</span> },
+          { h: 'Action', r: (r) => <button className="btn light xs" onClick={() => setView(r)}>View</button> },
+        ]} />
+      </Card>
+
+      {view && (
+        <Modal title={`Deposit #${view.id}`} onClose={() => setView(null)}
+          footer={<button className="btn light" onClick={() => setView(null)}>Close</button>}>
+          <div className="feed-box">
+            <div><small>CUSTOMER</small><code>{view.name} · {view.mobile}</code></div>
+            <div><small>AMOUNT</small><code>₹ {view.amount}</code></div>
+            <div><small>REQUEST NO. / UTR</small><code>{view.utr}</code></div>
+            <div><small>PAID FROM</small><code>{view.payer || 'not given'}</code></div>
+            <div><small>RECEIVED</small><code>{view.date} {clock(view.time)}</code></div>
+            <div><small>STATUS</small><code>{view.status}{view.auto ? ' (auto deposit)' : ''}</code></div>
+            <div><small>REMARK</small><code>{view.remark || '-'}</code></div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

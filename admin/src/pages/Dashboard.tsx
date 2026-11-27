@@ -1,25 +1,16 @@
 import { useState } from 'react';
 import {
   Calendar, RefreshCw, Sparkles, Crown, UserX, UserCheck, Users, Gamepad2, TrendingUp,
-  Filter, Trophy, Wallet, Search, CheckCircle2, UserPlus,
+  Filter, Trophy, Wallet, Search, CheckCircle2, UserPlus, Landmark, Banknote, Zap,
 } from 'lucide-react';
 import { Field, DateInput, GameSelect, DataTable, Modal, YesNo, useDemo } from '../ui';
 import { prettyDate, inr } from '../data';
-import { todayIso, useLoad, type AdminMarket, type DailyUsers, type Stats } from '../api';
+import { todayIso, useLoad, type AdminAutoDeposit, type AdminMarket, type DailyUsers, type Stats } from '../api';
 import type { Go } from '../types';
 
 const ANK_COLORS = ['#556ee6', '#34c38f', '#50a5f1', '#f7b924', '#a855f7', '#f1673e', '#e83e8c', '#6f42c1', '#e53946', '#20c997'];
 
-interface Deposit {
-  user: string;
-  amount: number;
-  utr: string;
-  req: string;
-  date: string;
-  status: string;
-}
-
-const DEPOSITS: Deposit[] = [];
+const AUTO_STATUS: Record<string, string> = { credited: 'success', unmatched: 'danger', pending: 'warning', rejected: 'danger' };
 
 /** Users registered or logged in on a chosen day; the admin can change the date to look at earlier days. */
 function DailyUsersModal({ go, onClose }: { go: Go; onClose: () => void }) {
@@ -58,9 +49,12 @@ export default function Dashboard({ go }: { go: Go }) {
   const demo = useDemo();
   const [q, setQ] = useState('');
   const [daily, setDaily] = useState(false);
-  const { data: stats, reload } = useLoad<Stats>('/admin/stats');
+  // Auto deposits arrive from the UPI feed without a click, so this screen refreshes itself.
+  const { data: stats, reload } = useLoad<Stats>('/admin/stats', 15000);
   const { data: markets } = useLoad<AdminMarket[]>('/admin/markets');
-  const rows = DEPOSITS.filter((d) => (d.user + d.utr + d.req).toLowerCase().includes(q.toLowerCase()));
+  const { data: autoDeposits } = useLoad<AdminAutoDeposit[]>('/admin/auto-deposits', 15000);
+  const rows = (autoDeposits ?? []).filter((d) =>
+    `${d.userName ?? ''} ${d.payer ?? ''} ${d.utr} ${d.amount}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <>
@@ -137,6 +131,25 @@ export default function Dashboard({ go }: { go: Go }) {
               <div><h6>Today Registered</h6><div className="val">{stats?.registeredToday ?? '-'}</div><small>{stats?.loggedInToday ?? 0} logged in today</small></div>
               <div className="ic"><UserPlus size={22} /></div>
             </div>
+            <div className="stat-card teal"><div><h6>Today Deposit</h6><div className="val">{inr(stats?.depositToday ?? 0)}</div></div><div className="ic"><Banknote size={22} /></div></div>
+          </div>
+
+          {/* Auto Deposit: fed by the UPI payment feed, opens its own history page. */}
+          <div
+            className="auto-card"
+            role="button"
+            tabIndex={0}
+            title="View every auto deposit and who paid it"
+            onClick={() => go('report_auto_deposit')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') go('report_auto_deposit'); }}
+          >
+            <div>
+              <h6>Auto Deposit</h6>
+              <div className="amt">{inr(stats?.autoDepositToday ?? 0)}</div>
+              <span className="chip"><Zap size={12} /> System Integrated</span>
+              <div className="sub">{(stats?.autoDepositCountToday ?? 0)} payment(s) credited today · tap to see who paid</div>
+            </div>
+            <div className="ic"><Landmark size={26} /></div>
           </div>
           {daily && <DailyUsersModal go={go} onClose={() => setDaily(false)} />}
 
@@ -192,24 +205,26 @@ export default function Dashboard({ go }: { go: Go }) {
             <div className="ic" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Wallet size={18} /></div>
             <h5>Fund Request Auto Deposit History</h5>
           </div>
-          <div className="search" style={{ width: 280 }}>
-            <Search size={15} />
-            <input className="input" placeholder="Search UTR, Username, Request..." value={q} onChange={(e) => setQ(e.target.value)} />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="search" style={{ width: 260 }}>
+              <Search size={15} />
+              <input className="input" placeholder="Search UTR, payer number, user..." value={q} onChange={(e) => setQ(e.target.value)} />
+            </div>
+            <button className="btn light sm" onClick={() => go('report_auto_deposit')}>View all</button>
           </div>
         </div>
         <DataTable
           head="dark"
-          rows={rows}
-          empty="No deposit history found."
+          rows={rows.slice(0, 10)}
+          empty="No auto deposit yet. Payments sent to the UPI ID show up here by themselves."
           columns={[
             { h: '#', r: (_, i) => i + 1 },
-            { h: 'User Name', r: (d) => <b>{d.user}</b> },
             { h: 'Amount', r: (d) => <span className="amount-plus">₹{d.amount}</span> },
+            { h: 'Paid From', r: (d) => d.payer ? <span style={{ fontFamily: 'monospace', letterSpacing: '.03em' }}>{d.payer}</span> : '-' },
             { h: 'UTR / Txn ID', r: (d) => <span style={{ fontFamily: 'monospace', letterSpacing: '.05em' }}>{d.utr}</span> },
-            { h: 'Req ID', r: (d) => d.req },
-            { h: 'Date', r: (d) => d.date },
-            { h: 'Status', r: (d) => <span className="badge success" style={{ borderRadius: 12 }}><CheckCircle2 size={11} style={{ verticalAlign: -1 }} /> {d.status}</span> },
-            { h: 'Action', r: () => '--' },
+            { h: 'User Name', r: (d) => d.userName ? <b>{d.userName} <small style={{ color: 'var(--muted)' }}>{d.userMobile}</small></b> : '-' },
+            { h: 'Date', r: (d) => `${d.date} ${d.time.slice(0, 5)}` },
+            { h: 'Status', r: (d) => <span className={'badge ' + (AUTO_STATUS[d.status] ?? '')} style={{ borderRadius: 12 }}><CheckCircle2 size={11} style={{ verticalAlign: -1 }} /> {d.status}</span> },
           ]}
         />
       </div>
