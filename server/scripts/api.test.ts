@@ -399,6 +399,22 @@ check('old admin password no longer works', (await api('POST', '/api/admin/login
   r = await api('GET', '/api/admin/stats', undefined, adm);
   check('the dashboard totals the credited auto deposits', r.status === 200 && r.data.autoDepositTotal === 312);
 
+  // The admin can switch automatic crediting off: a payment is recorded but the wallet waits.
+  r = await api('PUT', '/api/admin/settings', { auto_credit: '0' }, adm);
+  check('the admin can switch auto credit off', r.status === 200);
+  r = await feedPost({ amount: 9, utr: 'AUTOFEED0004', payer: '9876543210@paytm' });
+  check('with auto credit off a payment waits for the admin', r.status === 200 && r.data.status === 'pending' && (await bal()) === autoBefore + 312);
+  r = await api('GET', '/api/admin/auto-deposits', undefined, adm);
+  const held = r.data.find((d: any) => d.utr === 'AUTOFEED0004');
+  check('the held payment keeps the customer it matched and says why',
+    !!held && held.status === 'pending' && held.userId === uid && /Auto credit is off/.test(held.remark));
+  r = await api('POST', `/api/admin/auto-deposits/${held.id}/credit`, { userId: uid }, adm);
+  check('the admin can still credit a held payment', r.status === 200 && (await bal()) === autoBefore + 321);
+  r = await api('PUT', '/api/admin/settings', { auto_credit: '1' }, adm);
+  check('the admin can switch auto credit back on', r.status === 200);
+  r = await feedPost({ amount: 4, utr: 'AUTOFEED0005', payer: '9876543210@paytm' });
+  check('with auto credit on the payment credits at once again', r.status === 200 && r.data.status === 'credited' && (await bal()) === autoBefore + 325);
+
   // ---------- withdrawals ----------
   const wBefore = await bal();
   r = await api('POST', '/api/withdrawals', { amount: 100, method: 'upi', upi: 'bad id' }, user);

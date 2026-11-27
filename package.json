@@ -7,6 +7,7 @@
     "install:all": "npm --prefix server install --no-audit --no-fund && npm --prefix app install --no-audit --no-fund && npm --prefix admin install --no-audit --no-fund",
     "build:apps": "npm --prefix app run build && npm --prefix admin run build",
     "serve": "node scripts/dev.mjs",
+    "feed": "node scripts/feed-link.mjs",
     "dev": "npm run build:apps && npm run serve",
     "test": "npm --prefix server test && npm --prefix app test",
     "typecheck": "npm --prefix server run typecheck && npm --prefix app run typecheck && npm --prefix admin run typecheck"

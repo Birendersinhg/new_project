@@ -91,7 +91,11 @@ export interface AdminDepositRow {
 }
 
 /** Where the payment feed has to post, and the key it signs every payment with. */
-export interface AutoDepositFeed { url: string; key: string; upi: string }
+export interface AutoDepositFeed {
+  url: string; key: string; upi: string;
+  lastPayment: string | null;
+  attempts: { at: string; code: number; detail: string }[];
+}
 export interface Rates { single: number; jodi: number; sp: number; dp: number; tp: number; half: number; full: number }
 export interface Slider { url: string; order: number }
 export interface SlotRates { starSingle: number; starSp: number; starDp: number; starTp: number; jackpotJodi: number }
@@ -105,6 +109,8 @@ export interface AdminSettings {
   pay_mobile: string;
   /** UPI payee used by the app to build payment links. */
   upi_id: string; upi_name: string; upi_note: string; upi_enabled: string; min_deposit: string; min_withdraw: string;
+  /** '1' credits a UPI payment to the wallet as soon as the feed reports it; '0' waits for the admin. */
+  auto_credit: string;
   /** Trust and security strip on the app's Add Money page: heading + one message per line. */
   trust_title: string; trust_note: string;
 }

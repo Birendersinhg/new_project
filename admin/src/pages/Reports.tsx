@@ -249,6 +249,18 @@ export function AutoDepositHistory() {
             <div><small>PAYEE</small><code>{feed.upi || 'Set the UPI ID in Settings first'}</code></div>
           </div>
         ) : <div className="hint">Loading the feed details...</div>}
+        {feed && (
+          <div className="hint" style={{ marginTop: 12, lineHeight: 1.7 }}>
+            {feed.attempts.length === 0
+              ? 'No call has ever reached this address. A payment alone cannot appear here — the phone has to forward the bank message to the URL above.'
+              : feed.attempts.map((a) => (
+                <div key={`${a.at}-${a.detail}`}>
+                  {a.at} · {a.code === 200 ? 'accepted' : `refused ${a.code} — ${a.detail}`}
+                </div>
+              ))}
+            {feed.lastPayment ? <div>Last payment stored: {feed.lastPayment}</div> : null}
+          </div>
+        )}
       </Card>
 
       <Card title="Auto Deposit List" right={
@@ -269,7 +281,14 @@ export function AutoDepositHistory() {
           {
             h: 'Action', r: (d) => (d.status === 'credited' || d.status === 'rejected'
               ? <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>Resolved</span>
-              : <button className="btn success xs" onClick={() => { setCredit(d); setWho(''); }}>Credit</button>),
+              // The UTR belongs to a claim, which is approved under Fund Request, not here.
+              : d.paymentId
+                ? <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>Review in Fund Request</span>
+                : <button className="btn success xs" onClick={() => {
+                setCredit(d);
+                // A payment held because auto credit is off already knows its customer.
+                setWho(d.userId && d.userName && d.userMobile ? `${d.userName} · ${d.userMobile}` : '');
+              }}>Credit</button>),
           },
         ]} />
       </Card>

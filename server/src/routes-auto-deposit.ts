@@ -50,39 +50,47 @@ function record(p: {
   amount: number; utr: string; payer: string; payerName: string; payee: string; note: string;
   source: string; raw: string;
 }): { status: string; userId: number | null; balance?: number; remark: string } {
+  // The admin can switch automatic crediting off in Settings: payments are then stored only,
+  // and the admin credits them by hand from Auto Deposit History / Fund Request.
+  const autoCredit = getSetting('auto_credit') !== '0';
   const mobile = payerMobile(p.payer);
   const insert = db.prepare(`INSERT INTO auto_deposits
     (amount, utr, payer, payer_name, payee, note, status, user_id, payment_id, remark, source, raw)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`);
   const claim = db.prepare('SELECT id, user_id, amount, status FROM upi_payments WHERE utr = ?')
     .get(p.utr) as { id: number; user_id: number; amount: number; status: string } | undefined;
+  // Every branch stores one row; only the status, customer and remark differ.
+  const save = (status: string, userId: number | null, paymentId: number | null, remark: string) =>
+    insert.run(p.amount, p.utr, p.payer || mobile || null, p.payerName || null, p.payee || null, p.note || null,
+      status, userId, paymentId, remark, p.source || null, p.raw);
 
   // 1. The customer already told the app this UTR: approve that claim, so one payment is credited once.
   if (claim) {
     if (claim.status === 'approved') {
       const remark = 'UTR was already approved, nothing credited twice';
-      insert.run(p.amount, p.utr, p.payer || null, p.payerName || null, p.payee || null, p.note || null,
-        'rejected', claim.user_id, claim.id, remark, p.source || null, p.raw);
+      save('rejected', claim.user_id, claim.id, remark);
       return { status: 'rejected', userId: claim.user_id, remark };
     }
     if (claim.status === 'rejected') {
       const remark = 'Claim was rejected by the admin, nothing credited';
-      insert.run(p.amount, p.utr, p.payer || null, p.payerName || null, p.payee || null, p.note || null,
-        'rejected', claim.user_id, claim.id, remark, p.source || null, p.raw);
+      save('rejected', claim.user_id, claim.id, remark);
       return { status: 'rejected', userId: claim.user_id, remark };
     }
     if (claim.amount !== p.amount) {
       const remark = `Received ₹${p.amount} but the claim is ₹${claim.amount}`;
-      insert.run(p.amount, p.utr, p.payer || null, p.payerName || null, p.payee || null, p.note || null,
-        'pending', claim.user_id, claim.id, remark, p.source || null, p.raw);
+      save('pending', claim.user_id, claim.id, remark);
+      return { status: 'pending', userId: claim.user_id, remark };
+    }
+    if (!autoCredit) {
+      const remark = 'Auto credit is off: approve this claim by hand';
+      save('pending', claim.user_id, claim.id, remark);
       return { status: 'pending', userId: claim.user_id, remark };
     }
     db.prepare("UPDATE upi_payments SET status = 'approved', remark = ?, reviewed_at = datetime('now', 'localtime') WHERE id = ?")
       .run('Auto deposit: UPI payment received', claim.id);
     const balance = changeBalance(claim.user_id, p.amount, `UPI deposit #${claim.id} (auto, UTR ${p.utr})`);
     const remark = 'Auto-verified from the UPI payment feed';
-    insert.run(p.amount, p.utr, p.payer || null, p.payerName || null, p.payee || null, p.note || null,
-      'credited', claim.user_id, claim.id, remark, p.source || null, p.raw);
+    save('credited', claim.user_id, claim.id, remark);
     return { status: 'credited', userId: claim.user_id, balance, remark };
   }
 
@@ -91,21 +99,24 @@ function record(p: {
     ? db.prepare('SELECT id, name FROM users WHERE mobile = ?').get(mobile) as { id: number; name: string } | undefined
     : undefined;
   if (user) {
+    if (!autoCredit) {
+      const remark = `Auto credit is off: credit ${user.name} by hand`;
+      save('pending', user.id, null, remark);
+      return { status: 'pending', userId: user.id, remark };
+    }
     // Recorded as an approved claim too, so every deposit report shows it in one place.
     const payment = db.prepare(`INSERT INTO upi_payments (user_id, amount, utr, payer, status, remark, reviewed_at)
       VALUES (?, ?, ?, ?, 'approved', 'Auto deposit: UPI payment received', datetime('now', 'localtime')) RETURNING id`)
       .get(user.id, p.amount, p.utr, p.payer || mobile) as { id: number };
     const balance = changeBalance(user.id, p.amount, `Auto deposit #${payment.id} (UTR ${p.utr})`);
     const remark = `Credited to ${user.name}`;
-    insert.run(p.amount, p.utr, p.payer || mobile, p.payerName || null, p.payee || null, p.note || null,
-      'credited', user.id, payment.id, remark, p.source || null, p.raw);
+    save('credited', user.id, payment.id, remark);
     return { status: 'credited', userId: user.id, balance, remark };
   }
 
   // 3. Nobody matched: keep the payment with the payer's number for the admin.
   const remark = 'No customer found for this payer';
-  insert.run(p.amount, p.utr, p.payer || null, p.payerName || null, p.payee || null, p.note || null,
-    'unmatched', null, null, remark, p.source || null, p.raw);
+  save('unmatched', null, null, remark);
   return { status: 'unmatched', userId: null, remark };
 }
 
@@ -113,7 +124,7 @@ function record(p: {
  * The payment feed's endpoint. Auth: `x-api-key: <key>` (or `Authorization: Bearer <key>`).
  * Sending the same UTR twice is safe: the second call is answered as a duplicate and credits nothing.
  */
-route('POST', '/api/auto-deposit', (ctx) => {
+function ingest(ctx: Ctx) {
   const sent = String(ctx.req.headers['x-api-key'] ?? '').trim()
     || (ctx.req.headers.authorization ?? '').replace(/^Bearer /i, '').trim();
   if (!sent || !keyMatches(sent)) throw new HttpError(401, 'Invalid auto deposit key');
@@ -140,6 +151,24 @@ route('POST', '/api/auto-deposit', (ctx) => {
     raw: JSON.stringify(body).slice(0, 2000),
   }));
   return { ok: true, duplicate: false, status: done.status, amount, utr, userId: done.userId, remark: done.remark };
+}
+
+/** Keeps the last 50 calls to the feed, so the admin can see whether the sender reaches this server. */
+function logAttempt(code: number, detail: string) {
+  db.prepare('INSERT INTO feed_attempts (code, detail) VALUES (?, ?)').run(code, detail.slice(0, 200));
+  db.prepare('DELETE FROM feed_attempts WHERE id <= (SELECT max(id) FROM feed_attempts) - 50').run();
+}
+
+route('POST', '/api/auto-deposit', (ctx) => {
+  try {
+    const out = ingest(ctx) as { status?: string; duplicate?: boolean };
+    logAttempt(200, out.duplicate ? 'Already received (duplicate)' : `Stored: ${out.status}`);
+    return out;
+  } catch (err) {
+    const code = err instanceof HttpError ? err.status : 500;
+    logAttempt(code, err instanceof Error ? err.message : 'Call failed');
+    throw err;
+  }
 });
 
 // ---------- admin ----------
@@ -171,7 +200,14 @@ route('GET', '/api/admin/auto-deposits', (ctx) => {
 /** The endpoint + key the admin gives to the UPI payment app / SMS forwarder. */
 route('GET', '/api/admin/auto-deposits/feed', (ctx) => {
   admin(ctx);
-  return { url: '/api/auto-deposit', key: autoDepositKey(), upi: getSetting('upi_id') };
+  const last = db.prepare('SELECT max(created_at) AS at FROM auto_deposits').get() as { at: string | null };
+  return {
+    url: '/api/auto-deposit',
+    key: autoDepositKey(),
+    upi: getSetting('upi_id'),
+    lastPayment: last.at,
+    attempts: db.prepare('SELECT at, code, detail FROM feed_attempts ORDER BY id DESC LIMIT 3').all(),
+  };
 });
 
 /** Credits a payment the feed could not match to a customer. */

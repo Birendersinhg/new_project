@@ -203,6 +203,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS auto_deposits_status ON auto_deposits (status, id);
   CREATE INDEX IF NOT EXISTS auto_deposits_created ON auto_deposits (created_at);
 
+  -- Every call to the payment feed URL. A payment that never shows up can then be explained:
+  -- nothing reached the server, or the sender used the wrong key / a bad body.
+  CREATE TABLE IF NOT EXISTS feed_attempts (
+    id INTEGER PRIMARY KEY,
+    at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    code INTEGER NOT NULL,
+    detail TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS feed_attempts_at ON feed_attempts (at);
+
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `);
 
@@ -261,6 +271,9 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   upi_name: '',
   upi_note: 'Wallet top-up',
   upi_enabled: '0',
+  // '1' tops up the customer's wallet the moment the payment feed reports money.
+  // '0' keeps every payment waiting for the admin (Fund Request / Auto Deposit History).
+  auto_credit: '1',
   min_deposit: '10',
   min_withdraw: '100',
   // Trust and security messages under the payment options on Add Money. One per line, up to 5.

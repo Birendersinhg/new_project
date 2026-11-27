@@ -161,7 +161,7 @@ export function MainSettings() {
           </Field>
           <Field label="UPI ID / merchant VPA" style={{ marginBottom: 14 }}>
             <input className="input" placeholder="9876543210@okhdfc" autoCapitalize="none" {...settings.input('upi_id')} />
-            <div className="hint">UPI apps can only pay an address, not a plain number. Paste your business app's merchant VPA here exactly as it is (e.g. 3114065a@bandhan); it is used as-is and is never rebuilt from the number. A plain number@handle ID stays tied to the number above.</div>
+            <div className="hint">UPI apps can only pay an address, not a plain number. Paste your business app's merchant VPA here exactly as it is (e.g. 3472605a@bandhan); it is used as-is and is never rebuilt from the number. A plain number@handle ID stays tied to the number above.</div>
           </Field>
           <Field label="Payee name (shown in the UPI app)" style={{ marginBottom: 14 }}>
             <input className="input" placeholder="My Shop" {...settings.input('upi_name')} />
@@ -181,6 +181,27 @@ export function MainSettings() {
             Save UPI Settings
           </button>
           <div className="hint" style={{ marginTop: 10 }}>{settings.error}</div>
+        </Card>
+        <Card style={{ marginBottom: 0 }}>
+          <h5 className="card-title">Auto Credit Wallet (UPI Payments)</h5>
+          <div className="card-sub" style={{ margin: '-8px 0 14px' }}>
+            When the payment feed reports money on your UPI ID, credit the customer's wallet instantly.
+            Turn it off and every payment waits for you under Report Management &rarr; Auto Deposit History,
+            where you credit it by hand.
+          </div>
+          <Field label="Auto credit status" style={{ marginBottom: 18 }}>
+            <select className="select" value={settings.value('auto_credit') === '0' ? 'off' : 'on'}
+              onChange={(e) => settings.set('auto_credit', e.target.value === 'on' ? '1' : '0')}
+              style={{ color: settings.value('auto_credit') === '0' ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
+              <option value="on">🟢 Active (payment credits the wallet instantly)</option>
+              <option value="off">🔴 Inactive (admin credits every payment by hand)</option>
+            </select>
+          </Field>
+          <button className="btn" onClick={() => settings.save(['auto_credit'], 'Auto credit setting saved')}>Save Auto Credit Setting</button>
+          <div className="hint" style={{ marginTop: 10 }}>
+            Works together with the payment feed (npm run feed / your SMS forwarder). A payment whose payer
+            cannot be matched to a customer always waits for you to credit it.
+          </div>
         </Card>
         <Card style={{ marginBottom: 0 }}>
           <h5 className="card-title">M-PIN Lock Screen Setting</h5>
