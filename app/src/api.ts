@@ -73,7 +73,7 @@ export interface PublicSettings {
   quizTimer: number;
   /** Where to send UPI payments. */
   upi: UpiConfig;
-  /** Reassurance lines shown under the payment options; the admin edits them. */
+  /** Trust and security reassurance lines shown on the Add Money page. */
   trust: { title: string; items: string[] };
 }
 

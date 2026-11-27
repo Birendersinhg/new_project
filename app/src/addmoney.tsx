@@ -16,6 +16,7 @@ const QUICK = [300, 500, 1000, 2000];
 export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: () => void }) {
   const { settings } = useAppData();
   const dbUpi = settings.upi;
+  const trust = settings.trust ?? { title: '', items: [] };
   const [amount, setAmount] = useState('');
   const [stage, setStage] = useState<'amount' | 'pay'>('amount');
   const [utr, setUtr] = useState('');
@@ -52,7 +53,7 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
     return () => { alive = false; };
     // pay changes on every render; the values below are what the QR actually depends on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, dbUpi.type, ready, amt, ref]);
+  }, [stage, dbUpi.type, ready, amt]);
 
   const open = () => {
     setError('');
@@ -97,6 +98,13 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
           <b>{amountText(balance)} <small>INR</small></b>
         </div>
 
+        <div className="trust-card fee-strip">
+          <div className="trust-head"><ShieldCheck size={14} />{trust.title}</div>
+          <ul>
+            {trust.items.map((t, i) => <li key={i}><span className="trust-ic"><ShieldCheck size={15} /></span>{t}</li>)}
+          </ul>
+        </div>
+
         {!dbUpi.enabled ? (
           <div className="info-box">UPI payments are not set up yet. Please contact support.</div>
         ) : (
@@ -118,7 +126,7 @@ export function AddMoneyScreen({ balance, onBack }: { balance: number; onBack: (
 
             {amt > 0 && amt < min && <div className="pay-note warn">Minimum deposit is ₹{min}.</div>}
 
-            <button type="button" className="auth-btn pay-proceed" disabled={!ready} onClick={open}>
+            <button type="button" className="auth-btn pay-proceed" disabled={!ready} onClick={() => { setError(''); setSent(''); open(); }}>
               <ShieldCheck size={17} /> PAY NOW
             </button>
           </>

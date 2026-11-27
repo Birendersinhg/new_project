@@ -113,7 +113,7 @@ export interface AdminSettings {
   auto_credit: string;
   /** How the app takes payment: 'qr' shows the QR only, 'upi' opens a UPI app. */
   payment_type: string;
-  /** Trust and security strip on the app's Add Money page: heading + one message per line. */
+  /** Trust and security messages visible on the app Add Money page when enabled. */
   trust_title: string; trust_note: string;
 }
 
