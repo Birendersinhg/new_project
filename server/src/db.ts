@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname } from 'node:path';
@@ -180,6 +181,28 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS withdraw_requests_user ON withdraw_requests (user_id, id);
   CREATE INDEX IF NOT EXISTS withdraw_requests_status ON withdraw_requests (status, id);
 
+  -- UPI payments that arrived on the admin's UPI ID, pushed in by the payment feed.
+  -- status: credited (wallet topped up) / unmatched (payer is not a customer yet) /
+  -- pending (needs the admin, e.g. the amount does not match the claim) / rejected.
+  CREATE TABLE IF NOT EXISTS auto_deposits (
+    id INTEGER PRIMARY KEY,
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    utr TEXT NOT NULL UNIQUE,
+    payer TEXT,
+    payer_name TEXT,
+    payee TEXT,
+    note TEXT,
+    status TEXT NOT NULL DEFAULT 'credited' CHECK (status IN ('credited', 'unmatched', 'pending', 'rejected')),
+    user_id INTEGER REFERENCES users(id),
+    payment_id INTEGER REFERENCES upi_payments(id),
+    remark TEXT,
+    source TEXT,
+    raw TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+  CREATE INDEX IF NOT EXISTS auto_deposits_status ON auto_deposits (status, id);
+  CREATE INDEX IF NOT EXISTS auto_deposits_created ON auto_deposits (created_at);
+
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `);
 
@@ -284,6 +307,9 @@ export function seed() {
     const password = process.env.ADMIN_PASSWORD ?? 'admin123';
     db.prepare('INSERT INTO admins (email, pass_hash) VALUES (?, ?)').run(email.toLowerCase(), hashPassword(password));
   }
+
+  // The auto deposit feed needs its key from the first request, so create it at startup.
+  autoDepositKey();
 }
 
 /** Runs `fn` in a transaction; any thrown error rolls everything back. */
@@ -297,6 +323,18 @@ export function tx<T>(fn: () => T): T {
     db.exec('ROLLBACK');
     throw err;
   }
+}
+
+/**
+ * Shared secret the payment feed sends with every deposit. Generated once per install and kept in
+ * settings, so the ingest endpoint is never open to anyone who knows the URL.
+ */
+export function autoDepositKey(): string {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'auto_deposit_key'").get() as { value: string } | undefined;
+  if (row?.value) return row.value;
+  const key = randomBytes(16).toString('hex');
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('auto_deposit_key', ?)").run(key);
+  return key;
 }
 
 export function getSetting(key: string): string {

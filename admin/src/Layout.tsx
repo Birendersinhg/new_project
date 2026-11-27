@@ -30,12 +30,13 @@ export const MENU: MenuItem[] = [
   { label: 'Disawar Result', icon: Trophy, tab: 'disawar_result' },
   {
     label: 'Report Management', icon: FileText, children: [
+      { label: 'Deposit Report', tab: 'report_deposit' },
+      { label: 'Auto Deposit History', tab: 'report_auto_deposit' },
       { label: 'Users Bid History', tab: 'report_bid_history' },
       { label: 'Customer Sell Report', tab: 'report_sell' },
       { label: 'Winning Report', tab: 'report_winning' },
       { label: 'Bid Win Report', tab: 'report_bid_win' },
       { label: 'Withdraw Report', tab: 'report_withdraw' },
-      { label: 'Auto Deposit History', tab: 'report_auto_deposit' },
       { label: 'Add Fund Report', tab: 'report_add_fund' },
     ],
   },

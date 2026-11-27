@@ -334,6 +334,71 @@ check('old admin password no longer works', (await api('POST', '/api/admin/login
   r = await api('POST', `/api/admin/payments/${dep2}`, { action: 'reject', remark: 'UTR not found in bank statement' }, adm);
   check('rejecting a claim credits nothing', r.status === 200 && r.data.status === 'rejected' && (await bal()) === before + 500);
 
+  // ---------- auto deposit feed ----------
+  const autoBefore = await bal();
+  r = await api('GET', '/api/admin/auto-deposits/feed', undefined, adm);
+  const feedKey: string = r.data.key;
+  check('admin can read the auto deposit endpoint and key', r.status === 200 && typeof feedKey === 'string' && feedKey.length >= 16 && r.data.url === '/api/auto-deposit');
+  r = await api('GET', '/api/admin/auto-deposits/feed');
+  check('the feed details are admin only', r.status === 401);
+
+  const feedPost = async (body: unknown, key: string | null = feedKey) => {
+    const res = await fetch(`http://localhost:${port}/api/auto-deposit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(key ? { 'x-api-key': key } : {}) },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, data: await res.json() as any };
+  };
+
+  r = await feedPost({ amount: 7, utr: 'AUTOFEED0001', payer: '9876500099' }, 'wrong-key');
+  check('the feed rejects a wrong key', r.status === 401);
+  r = await feedPost({ amount: 0, utr: 'AUTOFEED0002', payer: '9876500099' });
+  check('the feed rejects a zero amount', r.status === 400);
+  r = await feedPost({ amount: 7, payer: '9876500099' });
+  check('the feed needs the bank reference', r.status === 400);
+
+  r = await feedPost({ amount: '₹7.00', utr: 'AUTOFEED0001', payer: '9876500099', payerName: 'Unknown Payee' });
+  check('an unknown payer is stored unmatched and credits nothing', r.status === 200 && r.data.status === 'unmatched' && (await bal()) === autoBefore);
+  r = await api('GET', '/api/admin/auto-deposits', undefined, adm);
+  const unmatched = r.data.find((d: any) => d.utr === 'AUTOFEED0001');
+  check('the admin sees the payer number and amount of an unmatched payment',
+    !!unmatched && unmatched.amount === 7 && unmatched.status === 'unmatched' && unmatched.payer === '9876500099' && unmatched.userName === null && unmatched.date && unmatched.time);
+  r = await api('POST', `/api/admin/auto-deposits/${unmatched.id}/credit`, { userId: uid }, adm);
+  check('the admin can credit an unmatched payment to a customer', r.status === 200 && r.data.status === 'credited' && (await bal()) === autoBefore + 7);
+  r = await api('POST', `/api/admin/auto-deposits/${unmatched.id}/credit`, { userId: uid }, adm);
+  check('a credited payment cannot be credited twice', r.status === 409);
+
+  r = await feedPost({ amount: 5, utr: 'AUTOFEED0003', payer: '9876543210@paytm' });
+  check("a payment from the customer's own number is credited at once", r.status === 200 && r.data.status === 'credited' && (await bal()) === autoBefore + 12);
+  r = await feedPost({ amount: 5, utr: 'AUTOFEED0003', payer: '9876543210@paytm' });
+  check('the same payment posted twice credits only once', r.status === 200 && r.data.duplicate === true && (await bal()) === autoBefore + 12);
+  r = await api('GET', '/api/payments/mine', undefined, user);
+  check('an auto credited payment shows in the user deposit history', r.data.deposits.some((d: any) => d.utr === 'AUTOFEED0003' && d.status === 'approved'));
+
+  // The customer typed this UTR in Add Money: the feed approves that claim instead of crediting twice.
+  r = await api('POST', '/api/payments/upi', { amount: 300, utr: '111222333444', payer: 'ravi@ybl' }, user);
+  const autoClaim = r.data.id;
+  r = await feedPost({ amount: 300, utr: '111222333444', payer: 'ravi@ybl' });
+  check("a payment matching the customer's UTR approves that claim", r.status === 200 && r.data.status === 'credited' && (await bal()) === autoBefore + 312);
+  const approved = await api('GET', '/api/admin/payments?status=approved', undefined, adm);
+  check('the matched claim is approved with the auto deposit remark', approved.data.some((p: any) => p.id === autoClaim && /Auto deposit/.test(p.remark)));
+
+  r = await api('POST', '/api/payments/upi', { amount: 400, utr: '555666777888', payer: 'ravi@ybl' }, user);
+  const mismatchClaim = r.data.id;
+  r = await feedPost({ amount: 350, utr: '555666777888', payer: 'ravi@ybl' });
+  check('a payment that does not match the claim amount waits for the admin', r.status === 200 && r.data.status === 'pending' && (await bal()) === autoBefore + 312);
+  const pendingClaims = await api('GET', '/api/admin/payments?status=pending', undefined, adm);
+  check('the mismatched claim stays pending', pendingClaims.data.some((p: any) => p.id === mismatchClaim));
+
+  r = await api('GET', '/api/admin/deposits', undefined, adm);
+  check('the deposit report lists every top-up with date, time and the auto flag',
+    r.status === 200 && r.data.some((d: any) => d.utr === '111222333444' && d.auto === 1 && /^\d{2}:\d{2}/.test(d.time) && d.date));
+  r = await api('GET', '/api/admin/deposits?from=2020-01-01&to=2020-01-02', undefined, adm);
+  check('the deposit report filters by date range', r.status === 200 && r.data.length === 0);
+  r = await api('GET', '/api/admin/stats', undefined, adm);
+  check('the dashboard totals the credited auto deposits', r.status === 200 && r.data.autoDepositTotal === 312);
+
   // ---------- withdrawals ----------
   const wBefore = await bal();
   r = await api('POST', '/api/withdrawals', { amount: 100, method: 'upi', upi: 'bad id' }, user);
@@ -354,7 +419,10 @@ check('old admin password no longer works', (await api('POST', '/api/admin/login
   check('paying keeps the points deducted', r.status === 200 && r.data.status === 'paid' && (await bal()) === wBefore - 200);
 
   r = await api('GET', '/api/payments/mine', undefined, user);
-  check('user sees deposit and withdrawal history', r.data.deposits.length === 2 && r.data.deposits.some((d: any) => d.status === 'approved') && r.data.withdrawals.length === 2 && r.data.withdrawals.some((w: any) => w.status === 'paid'));
+  check('user sees deposit and withdrawal history',
+    r.data.deposits.length >= 2 && r.data.deposits.some((d: any) => d.status === 'approved')
+    && r.data.deposits.some((d: any) => d.status === 'rejected') && r.data.deposits.some((d: any) => d.status === 'pending')
+    && r.data.withdrawals.length === 2 && r.data.withdrawals.some((w: any) => w.status === 'paid'));
   check('account number is masked in the user app', r.data.withdrawals.every((w: any) => !w.accountNo || w.accountNo.endsWith('9012')));
 
   // turn UPI back off so later checks see a clean state

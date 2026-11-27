@@ -4,6 +4,7 @@ import { handle, route } from './http.ts';
 import { otpProvider } from './otp.ts';
 import './routes-app.ts';
 import './routes-admin.ts';
+import './routes-auto-deposit.ts';
 
 seed();
 

@@ -297,7 +297,7 @@ thead.upper th { text-transform: uppercase; font-size: .8rem; letter-spacing: .0
 .mini-stat b { display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 1.25rem; margin-bottom: 6px; }
 .mini-stat.red { background: #fff1f1; border: 1px solid #fdd; color: var(--danger); }
 .mini-stat.green { background: #effcf4; border: 1px solid #c8f0d6; color: #1e9e57; }
-.stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 24px; }
+.stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 18px; margin-bottom: 24px; }
 .stat-card { border-radius: var(--radius); padding: 20px 18px; display: flex; justify-content: space-between; align-items: center; border: 1px solid; }
 .stat-card h6 { margin: 0 0 4px; font-size: .78rem; letter-spacing: .03em; text-transform: uppercase; }
 .stat-card .val { font-size: 1.4rem; font-weight: 700; }
@@ -308,6 +308,42 @@ thead.upper th { text-transform: uppercase; font-size: .8rem; letter-spacing: .0
 .stat-card.pink .ic { background: #e11d48; }
 .stat-card.amber { background: #fff8e6; border-color: #fde7b0; color: #92400e; }
 .stat-card.amber .ic { background: #d97706; }
+.stat-card.teal { background: #e8f7f2; border-color: #c6ece0; color: #0f5132; }
+.stat-card.teal .ic { background: var(--primary); }
+/* Auto deposit: the wide card the UPI payment feed keeps up to date by itself. */
+.auto-card {
+  display: flex; justify-content: space-between; align-items: center; gap: 18px;
+  background: linear-gradient(135deg, #5b5bf6, #4338ca); color: #fff; border-radius: var(--radius);
+  padding: 20px 24px; margin-bottom: 24px; cursor: pointer;
+  box-shadow: 0 10px 24px rgba(67, 56, 202, .18); transition: transform .15s, box-shadow .15s;
+}
+.auto-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(67, 56, 202, .28); }
+.auto-card:focus-visible { outline: 2px solid var(--heading); outline-offset: 2px; }
+.auto-card h6 { margin: 0 0 6px; font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; color: #dcd9ff; }
+.auto-card .amt { font-size: 1.75rem; font-weight: 700; line-height: 1.15; }
+.auto-card .chip {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 4px 12px;
+  border-radius: 14px; background: rgba(255, 255, 255, .2); font-size: .72rem; font-weight: 600;
+}
+.auto-card .sub { margin-top: 8px; font-size: .76rem; color: #e2e0ff; }
+.auto-card .ic {
+  width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .18); border: 1px solid rgba(255, 255, 255, .16); flex: none;
+}
+
+/* Auto deposit feed details (endpoint + key) on the report pages */
+.feed-box { display: grid; gap: 10px; }
+.feed-box > div {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px;
+}
+.feed-box small { width: 78px; font-size: .7rem; font-weight: 700; letter-spacing: .06em; color: var(--muted); }
+.feed-box code { font-size: .84rem; color: var(--heading); word-break: break-all; flex: 1; }
+
+/* Deposit report total */
+.total-amount { text-align: center; margin-top: 20px; }
+.total-amount small { display: block; color: var(--muted); font-size: .85rem; margin-bottom: 4px; }
+.total-amount div { color: #1e9e57; font-size: 1.9rem; font-weight: 700; }
 .section-title { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
 .section-title .ic { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; }
 .section-title h5 { margin: 0; font-size: 1.02rem; color: var(--heading); font-weight: 600; }

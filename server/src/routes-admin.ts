@@ -37,6 +37,11 @@ route('GET', '/api/admin/stats', (ctx) => {
     winsToday: one('SELECT COALESCE(SUM(win_amount), 0) AS n FROM bids WHERE date = ?', today),
     registeredToday: one('SELECT COUNT(*) AS n FROM users WHERE date(created_at) = ?', today),
     loggedInToday: one('SELECT COUNT(DISTINCT user_id) AS n FROM login_log WHERE date(at) = ?', today),
+    // Credit that arrived through the UPI auto deposit feed, and every approved top-up today.
+    autoDepositToday: one("SELECT COALESCE(SUM(amount), 0) AS n FROM auto_deposits WHERE status = 'credited' AND date(created_at) = ?", today),
+    autoDepositCountToday: one("SELECT COUNT(*) AS n FROM auto_deposits WHERE status = 'credited' AND date(created_at) = ?", today),
+    autoDepositTotal: one("SELECT COALESCE(SUM(amount), 0) AS n FROM auto_deposits WHERE status = 'credited'"),
+    depositToday: one("SELECT COALESCE(SUM(amount), 0) AS n FROM upi_payments WHERE status = 'approved' AND date(created_at) = ?", today),
   };
 });
 

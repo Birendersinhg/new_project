@@ -25,6 +25,7 @@ const PAGES: Record<string, ComponentType<PageProps>> = {
   report_sell: Reports.SellReport,
   report_winning: Reports.WinningReport,
   report_bid_win: Reports.BidWinReport,
+  report_deposit: Reports.DepositReport,
   report_withdraw: Reports.WithdrawReport,
   report_auto_deposit: Reports.AutoDepositHistory,
   report_add_fund: Reports.AddFundReport,
