@@ -1,5 +1,6 @@
 {
   "liveServer.settings.root": "/dist",
   "liveServer.settings.port": 5500,
-  "liveServer.settings.wait": 800
+  "liveServer.settings.wait": 800,
+  "python.terminal.useEnvFile": true
 }
