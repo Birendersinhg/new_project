@@ -337,6 +337,8 @@ const MAX_AMOUNT = 500_000;
 function publicUpi() {
   return {
     enabled: getSetting('upi_enabled') === '1' && !!getSetting('upi_id'),
+    // 'qr' = the app only shows the QR code; 'upi' = it opens the customer's UPI app.
+    type: getSetting('payment_type') === 'upi' ? 'upi' : 'qr',
     vpa: getSetting('upi_id'),
     mobile: getSetting('pay_mobile') || payeeMobile(getSetting('upi_id')),
     name: getSetting('upi_name') || 'Payment',

@@ -51,6 +51,8 @@ export interface Rates { single: number; jodi: number; sp: number; dp: number; t
 /** Payee details for UPI payments, set by the admin. `enabled` is false until a UPI ID is saved. */
 export interface UpiConfig {
   enabled: boolean;
+  /** 'qr' shows only the QR code; 'upi' opens the customer's UPI app. Set by the admin. */
+  type: 'qr' | 'upi';
   vpa: string;
   /** The payee's mobile number, shown to the customer; links still pay the VPA. */
   mobile: string;

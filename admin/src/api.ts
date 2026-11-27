@@ -111,6 +111,8 @@ export interface AdminSettings {
   upi_id: string; upi_name: string; upi_note: string; upi_enabled: string; min_deposit: string; min_withdraw: string;
   /** '1' credits a UPI payment to the wallet as soon as the feed reports it; '0' waits for the admin. */
   auto_credit: string;
+  /** How the app takes payment: 'qr' shows the QR only, 'upi' opens a UPI app. */
+  payment_type: string;
   /** Trust and security strip on the app's Add Money page: heading + one message per line. */
   trust_title: string; trust_note: string;
 }

@@ -274,6 +274,8 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // '1' tops up the customer's wallet the moment the payment feed reports money.
   // '0' keeps every payment waiting for the admin (Fund Request / Auto Deposit History).
   auto_credit: '1',
+  // How the app takes a UPI payment: 'qr' shows only the QR code, 'upi' opens a UPI app.
+  payment_type: 'qr',
   min_deposit: '10',
   min_withdraw: '100',
   // Trust and security messages under the payment options on Add Money. One per line, up to 5.

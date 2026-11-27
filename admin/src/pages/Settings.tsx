@@ -183,24 +183,31 @@ export function MainSettings() {
           <div className="hint" style={{ marginTop: 10 }}>{settings.error}</div>
         </Card>
         <Card style={{ marginBottom: 0 }}>
-          <h5 className="card-title">Auto Credit Wallet (UPI Payments)</h5>
+          <h5 className="card-title">Payment Settings</h5>
           <div className="card-sub" style={{ margin: '-8px 0 14px' }}>
-            When the payment feed reports money on your UPI ID, credit the customer's wallet instantly.
-            Turn it off and every payment waits for you under Report Management &rarr; Auto Deposit History,
-            where you credit it by hand.
+            Payment Accept decides whether the payment feed credits the wallet by itself. Payment Type decides
+            what the customer sees on the app's payment page: the QR code only, or a UPI app button only.
           </div>
-          <Field label="Auto credit status" style={{ marginBottom: 18 }}>
-            <select className="select" value={settings.value('auto_credit') === '0' ? 'off' : 'on'}
-              onChange={(e) => settings.set('auto_credit', e.target.value === 'on' ? '1' : '0')}
+          <Field label="Payment Accept" style={{ marginBottom: 14 }}>
+            <select className="select" value={settings.value('auto_credit') === '0' ? 'manual' : 'automatic'}
+              onChange={(e) => settings.set('auto_credit', e.target.value === 'automatic' ? '1' : '0')}
               style={{ color: settings.value('auto_credit') === '0' ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
-              <option value="on">🟢 Active (payment credits the wallet instantly)</option>
-              <option value="off">🔴 Inactive (admin credits every payment by hand)</option>
+              <option value="automatic">Automatic</option>
+              <option value="manual">Manual</option>
             </select>
           </Field>
-          <button className="btn" onClick={() => settings.save(['auto_credit'], 'Auto credit setting saved')}>Save Auto Credit Setting</button>
+          <Field label="Payment Type" style={{ marginBottom: 18 }}>
+            <select className="select" value={settings.value('payment_type') === 'upi' ? 'upi' : 'qr'}
+              onChange={(e) => settings.set('payment_type', e.target.value)} style={{ fontWeight: 600 }}>
+              <option value="qr">QR (customer scans the QR code)</option>
+              <option value="upi">UPI (customer pays in a UPI app)</option>
+            </select>
+          </Field>
+          <button className="btn" onClick={() => settings.save(['auto_credit', 'payment_type'], 'Payment settings saved. The app shows them within 10 seconds.')}>Save Payment Settings</button>
           <div className="hint" style={{ marginTop: 10 }}>
-            Works together with the payment feed (npm run feed / your SMS forwarder). A payment whose payer
-            cannot be matched to a customer always waits for you to credit it.
+            Automatic credits the wallet the moment the payment feed reports the money; Manual sends every payment
+            to Report Management &rarr; Auto Deposit History for you to credit by hand. A payment whose payer cannot
+            be matched to a customer always waits for you.
           </div>
         </Card>
         <Card style={{ marginBottom: 0 }}>

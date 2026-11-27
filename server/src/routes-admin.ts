@@ -220,7 +220,7 @@ route('GET', '/api/admin/bids', (ctx) => {
 
 // ---------- settings ----------
 const EDITABLE = ['ticker', 'contact_phone', 'whatsapp', 'min_bid', 'max_bid', 'welcome_bonus', 'how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'app_mode', 'quiz_timer',
-  'pay_mobile', 'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'auto_credit', 'min_deposit', 'min_withdraw', 'trust_title', 'trust_note'] as const;
+  'pay_mobile', 'upi_id', 'upi_name', 'upi_note', 'upi_enabled', 'auto_credit', 'payment_type', 'min_deposit', 'min_withdraw', 'trust_title', 'trust_note'] as const;
 const LONG_TEXT = ['how_to_play', 'notice_board', 'text_home', 'text_rates', 'text_timetable', 'text_support', 'text_game', 'trust_note'];
 const MAX_SLIDERS = 10;
 
@@ -242,6 +242,7 @@ route('PUT', '/api/admin/settings', (ctx) => {
     if (k === 'quiz_timer' && !['20', '25', '30'].includes(v)) throw new HttpError(400, 'Quiz timer must be 20, 25 or 30 seconds');
     if (k === 'upi_enabled' && v !== '0' && v !== '1') throw new HttpError(400, 'UPI status must be on or off');
     if (k === 'auto_credit' && v !== '0' && v !== '1') throw new HttpError(400, 'Auto credit must be on or off');
+    if (k === 'payment_type' && v !== 'qr' && v !== 'upi') throw new HttpError(400, 'Payment type must be QR or UPI');
     if (['min_deposit', 'min_withdraw'].includes(k) && (!/^\d+$/.test(v) || Number(v) < 1)) {
       throw new HttpError(400, `${k === 'min_deposit' ? 'Minimum deposit' : 'Minimum withdrawal'} must be a number of at least 1`);
     }
