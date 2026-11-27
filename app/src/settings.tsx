@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BarChart3, BellRing, Check, Landmark, Settings, Trophy, Wallet } from 'lucide-react';
 import { PageHeader } from './screens';
+import { useT } from './i18n';
 import type { LucideIcon } from './types';
 
 type PrefKey = 'win' | 'result' | 'withdraw' | 'deposit';
@@ -24,6 +25,7 @@ function loadPrefs(): Record<PrefKey, boolean> {
 }
 
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
+  const t = useT();
   const [prefs, setPrefs] = useState(loadPrefs);
 
   const toggle = (key: PrefKey) => {
@@ -36,16 +38,16 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     <div className="phone sub money">
       <PageHeader title="SETTINGS" subtitle="Manage your notifications" onBack={onBack} right={<Settings size={26} />} />
       <div className="hub">
-        <h3 className="rate-head"><BellRing size={24} /> Notification Preferences</h3>
+        <h3 className="rate-head"><BellRing size={24} /> {t('Notification Preferences')}</h3>
         {PREFS.map(({ key, title, desc, icon: Icon, bg, fg }) => (
           <div key={key} className="pref-row">
             <span className="pref-icon" style={{ background: bg, color: fg }}><Icon size={24} /></span>
-            <span className="hub-text"><b>{title}</b><small>{desc}</small></span>
+            <span className="hub-text"><b>{t(title)}</b><small>{t(desc)}</small></span>
             <button
               className={`switch ${prefs[key] ? 'on' : ''}`}
               role="switch"
               aria-checked={prefs[key]}
-              aria-label={title}
+              aria-label={t(title)}
               onClick={() => toggle(key)}
             >
               <span className="knob">{prefs[key] && <Check size={16} strokeWidth={3} />}</span>

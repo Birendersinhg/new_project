@@ -3,6 +3,7 @@ import { padTime } from './data';
 import { useAppData } from './appdata';
 import type { Rates, SlotRates } from './api';
 import { PageHeader } from './screens';
+import { useT } from './i18n';
 import type { LucideIcon } from './types';
 
 interface RateSection {
@@ -46,6 +47,7 @@ const slotSections = (r: SlotRates): RateSection[] => [
 
 export function GameRateScreen({ onBack }: { onBack: () => void }) {
   const { settings } = useAppData();
+  const t = useT();
   const sections = [mainRates(settings.rates), ...slotSections(settings.slotRates)];
   return (
     <div className="phone sub">
@@ -54,11 +56,11 @@ export function GameRateScreen({ onBack }: { onBack: () => void }) {
         {settings.texts.rates && <div className="info-box">{settings.texts.rates}</div>}
         {sections.map(({ title, icon: Icon, rates }) => (
           <section key={title} className="rate-section">
-            <h3 className="rate-head"><Icon size={24} /> {title}</h3>
+            <h3 className="rate-head"><Icon size={24} /> {t(title)}</h3>
             {rates.map(([game, win]) => (
               <div key={game} className="rate-row">
-                <span>{game}</span>
-                <b>10 Ka {win}</b>
+                <span>{t(game)}</span>
+                <b>{t('10 Ka {n}', { n: win })}</b>
               </div>
             ))}
           </section>
@@ -70,15 +72,16 @@ export function GameRateScreen({ onBack }: { onBack: () => void }) {
 
 export function TimeTableScreen({ onBack }: { onBack: () => void }) {
   const { markets, settings } = useAppData();
+  const t = useT();
   return (
     <div className="phone sub">
       <PageHeader title="TIME TABLE" subtitle="Today's Market Schedule" onBack={onBack} right={<Clock size={26} />} />
       <div className="hub tt">
         {settings.texts.timetable && <div className="info-box">{settings.texts.timetable}</div>}
         <div className="tt-head">
-          <span>GAME NAME</span>
-          <span>OPEN TIME</span>
-          <span>CLOSE TIME</span>
+          <span>{t('Game Name').toUpperCase()}</span>
+          <span>{t('Open Time').toUpperCase()}</span>
+          <span>{t('Close Time').toUpperCase()}</span>
         </div>
         {markets.map((m, i) => (
           <div key={m.id} className={`tt-row ${i % 2 ? 'alt' : ''}`}>

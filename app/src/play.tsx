@@ -5,6 +5,7 @@ import { DIGITS, GAME_KIND, ankOf, bidNumbers, normalizePana, pickerOptions, typ
 import { PageHeader } from './screens';
 import { api } from './api';
 import { useAppData } from './appdata';
+import { useT } from './i18n';
 
 type Session = 'Open' | 'Close';
 
@@ -27,6 +28,7 @@ interface PickerProps {
 
 /** Tappable grid of valid numbers; panas are grouped by ank and the list narrows as you type. */
 export function NumberPicker({ options, value, grouped, multi, onPick }: PickerProps) {
+  const t = useT();
   const norm = normalizePana(value);
   const shown = multi || !value ? options : options.filter((o) => o.startsWith(value) || o === norm);
   const chip = (n: string) => (
@@ -34,7 +36,7 @@ export function NumberPicker({ options, value, grouped, multi, onPick }: PickerP
       {n}
     </button>
   );
-  if (!shown.length) return <div className="picker-empty">No matching number</div>;
+  if (!shown.length) return <div className="picker-empty">{t('No matching number')}</div>;
   if (!grouped) return <div className="num-grid">{shown.map(chip)}</div>;
   return (
     <div className="picker-groups">
@@ -42,7 +44,7 @@ export function NumberPicker({ options, value, grouped, multi, onPick }: PickerP
         const list = shown.filter((p) => ankOf(p) === ank);
         return list.length ? (
           <div key={ank}>
-            <div className="ank-head">Ank <b>{ank}</b> <small>{list.length}</small></div>
+            <div className="ank-head">{t('Ank')} <b>{ank}</b> <small>{list.length}</small></div>
             <div className="num-grid">{list.map(chip)}</div>
           </div>
         ) : null;
@@ -63,6 +65,7 @@ interface PlayProps {
 }
 
 export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney }: PlayProps) {
+  const t = useT();
   const kind = GAME_KIND[game] ?? 'single';
   const mins = now.getHours() * 60 + now.getMinutes();
   const openPassed = mins >= toMinutes(market.open);
@@ -108,10 +111,10 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
 
   const add = (e: FormEvent) => {
     e.preventDefault();
-    if (usesSession && session === 'Open' && openPassed) return setError('Open session is closed. Select Close.');
+    if (usesSession && session === 'Open' && openPassed) return setError(t('Open session is closed. Select Close.'));
     const pts = Number(points);
     if (!Number.isInteger(pts) || pts < MIN_POINTS || pts > MAX_POINTS) {
-      return setError(`Points must be between ${MIN_POINTS} and ${MAX_POINTS}`);
+      return setError(t('Points must be between {min} and {max}', { min: MIN_POINTS, max: MAX_POINTS }));
     }
     try {
       const numbers = bidNumbers(kind, { a, b, halfMode, kinds });
@@ -120,7 +123,7 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
       if (needed > balance) return setLowBalance(needed);
       addBids(numbers, pts);
     } catch (err) {
-      setError((err as Error).message);
+      setError(t((err as Error).message));
     }
   };
 
@@ -182,7 +185,7 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
               {(['Open', 'Close'] as Session[]).map((s) => (
                 <button key={s} type="button" disabled={s === 'Open' && openPassed}
                   className={session === s ? 'on' : ''} onClick={() => { setSession(s); setError(''); }}>
-                  {s.toUpperCase()}
+                  {t(s).toUpperCase()}
                 </button>
               ))}
             </div>
@@ -190,24 +193,24 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
         </div>
 
         {blocked ? (
-          <div className="info-box">{game} closes at the market&apos;s open time ({market.open}). Please play tomorrow.</div>
+          <div className="info-box">{t("{game} closes at the market's open time ({time}). Please play tomorrow.", { game: t(game), time: market.open })}</div>
         ) : (
           <form className="play-card play-form" onSubmit={add}>
             {kind === 'half' && (
               <div className="seg">
-                <button type="button" className={halfMode === 'A' ? 'on' : ''} onClick={() => { setHalfMode('A'); reset(); }}>Half Sangam A</button>
-                <button type="button" className={halfMode === 'B' ? 'on' : ''} onClick={() => { setHalfMode('B'); reset(); }}>Half Sangam B</button>
+                <button type="button" className={halfMode === 'A' ? 'on' : ''} onClick={() => { setHalfMode('A'); reset(); }}>{t('Half Sangam A')}</button>
+                <button type="button" className={halfMode === 'B' ? 'on' : ''} onClick={() => { setHalfMode('B'); reset(); }}>{t('Half Sangam B')}</button>
               </div>
             )}
-            <label className="play-field"><span>{labelA}</span>
-              <input value={a} inputMode="numeric" placeholder={`Enter ${labelA}`} onFocus={() => setField('a')}
+            <label className="play-field"><span>{t(labelA)}</span>
+              <input value={a} inputMode="numeric" placeholder={t('Enter {label}', { label: t(labelA) })} onFocus={() => setField('a')}
                 className={field === 'a' ? 'active' : ''}
                 maxLength={kind.endsWith('motor') ? 10 : labelA.includes('Pana') ? 3 : kind === 'jodi' ? 2 : 1}
                 onChange={(e) => { setA(e.target.value.replace(/\D/g, '')); setError(''); }} />
             </label>
             {labelB && (
-              <label className="play-field"><span>{labelB}</span>
-                <input value={b} inputMode="numeric" placeholder={`Enter ${labelB}`} onFocus={() => setField('b')}
+              <label className="play-field"><span>{t(labelB)}</span>
+                <input value={b} inputMode="numeric" placeholder={t('Enter {label}', { label: t(labelB) })} onFocus={() => setField('b')}
                   className={field === 'b' ? 'active' : ''}
                   maxLength={labelB.includes('Pana') ? 3 : 1}
                   onChange={(e) => { setB(e.target.value.replace(/\D/g, '')); setError(''); }} />
@@ -215,8 +218,8 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
             )}
             <div className="picker">
               <div className="picker-title">
-                {isMotor ? 'Tap digits to select' : `Select ${activeLabel}`}
-                <small>{options.length} numbers</small>
+                {isMotor ? t('Tap digits to select') : t('Select {label}', { label: t(activeLabel) })}
+                <small>{t('{n} numbers', { n: options.length })}</small>
               </div>
               <NumberPicker options={options} value={activeValue} grouped={options.length > 20 && kind !== 'jodi'}
                 multi={isMotor} onPick={pick} />
@@ -231,22 +234,22 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
                 ))}
               </div>
             )}
-            <label className="play-field"><span>Points{kind === 'spdptp' || kind.endsWith('motor') ? ' (per pana)' : ''}</span>
-              <input value={points} inputMode="numeric" placeholder={`Min ${MIN_POINTS}`}
+            <label className="play-field"><span>{t('Points')}{kind === 'spdptp' || kind.endsWith('motor') ? ` ${t('(per pana)')}` : ''}</span>
+              <input value={points} inputMode="numeric" placeholder={t('Min {n}', { n: MIN_POINTS })}
                 onChange={(e) => { setPoints(e.target.value.replace(/\D/g, '')); setError(''); }} />
             </label>
-            {error && <div className="auth-error">{error}</div>}
-            <button className="auth-btn">ADD BID</button>
+            {error && <div className="auth-error">{t(error)}</div>}
+            <button className="auth-btn">{t('ADD BID')}</button>
           </form>
         )}
 
         {bids.length > 0 && (
           <div className="play-card bid-list">
-            <div className="bid-row head"><span>Number</span><span>Session</span><span>Points</span><span /></div>
+            <div className="bid-row head"><span>{t('Number')}</span><span>{t('Session')}</span><span>{t('Points')}</span><span /></div>
             {bids.map((x, i) => (
               <div key={`${x.number}-${x.session}`} className="bid-row">
                 <span>{x.number}</span>
-                <span>{x.session ?? '-'}</span>
+                <span>{x.session ? t(x.session) : '-'}</span>
                 <span>{x.points}</span>
                 <button aria-label="Remove" onClick={() => setBids((l) => l.filter((_, j) => j !== i))}><Trash2 size={18} /></button>
               </div>
@@ -257,19 +260,19 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
       </div>
 
       <div className="play-footer">
-        <div><small>Bids</small><b>{bids.length}</b></div>
-        <div><small>Points</small><b>{total}</b></div>
-        <button className="auth-btn" disabled={!bids.length} onClick={() => (total > balance ? setLowBalance(total) : setConfirm(true))}>SUBMIT</button>
+        <div><small>{t('Bids')}</small><b>{bids.length}</b></div>
+        <div><small>{t('Points')}</small><b>{total}</b></div>
+        <button className="auth-btn" disabled={!bids.length} onClick={() => (total > balance ? setLowBalance(total) : setConfirm(true))}>{t('SUBMIT')}</button>
       </div>
 
       {confirm && (
         <div className="overlay center" onClick={() => setConfirm(false)}>
           <div className="closed-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ color: '#222' }}>Confirm Bids</h3>
-            <p>{market.name} · {game}<br />{bids.length} bids · {total} points</p>
+            <h3 style={{ color: '#222' }}>{t('Confirm Bids')}</h3>
+            <p>{market.name} · {t(game)}<br />{t('{bids} bids · {points} points', { bids: bids.length, points: total })}</p>
             <div className="seg">
-              <button onClick={() => setConfirm(false)}>CANCEL</button>
-              <button className="on" disabled={submitting} onClick={submit}>{submitting ? 'PLEASE WAIT' : 'CONFIRM'}</button>
+              <button onClick={() => setConfirm(false)}>{t('CANCEL')}</button>
+              <button className="on" disabled={submitting} onClick={submit}>{t(submitting ? 'PLEASE WAIT' : 'CONFIRM')}</button>
             </div>
           </div>
         </div>
@@ -278,14 +281,14 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
         <div className="overlay center" onClick={() => setLowBalance(null)}>
           <div className="closed-modal" onClick={(e) => e.stopPropagation()}>
             <span className="closed-x"><Wallet size={42} /></span>
-            <h3>Insufficient Balance</h3>
+            <h3>{t('Insufficient Balance')}</h3>
             <p>
-              You need <b>₹{lowBalance}</b> for these bids but your wallet has <b>₹{balance.toFixed(2)}</b>.
-              <br />Minimum bid is ₹{MIN_POINTS}. Please add money to continue.
+              {t('You need ₹{need} for these bids but your wallet has ₹{have}.', { need: lowBalance, have: balance.toFixed(2) })}
+              <br />{t('Minimum bid is ₹{min}. Please add money to continue.', { min: MIN_POINTS })}
             </p>
             <div className="seg">
-              <button onClick={() => setLowBalance(null)}>OK</button>
-              <button className="on" onClick={onAddMoney}>ADD MONEY</button>
+              <button onClick={() => setLowBalance(null)}>{t('OK')}</button>
+              <button className="on" onClick={onAddMoney}>{t('ADD MONEY')}</button>
             </div>
           </div>
         </div>
@@ -294,9 +297,9 @@ export function GamePlayScreen({ market, game, now, balance, onBack, onAddMoney 
         <div className="overlay center" onClick={() => setDone(false)}>
           <div className="closed-modal" onClick={(e) => e.stopPropagation()}>
             <span className="closed-x ok"><CheckCircle2 size={46} /></span>
-            <h3 style={{ color: '#2e7d32' }}>Success</h3>
-            <p>Your bids have been placed. Check them in My Bids.</p>
-            <button className="auth-btn" onClick={() => setDone(false)}>OK</button>
+            <h3 style={{ color: '#2e7d32' }}>{t('Success')}</h3>
+            <p>{t('Your bids have been placed. Check them in My Bids.')}</p>
+            <button className="auth-btn" onClick={() => setDone(false)}>{t('OK')}</button>
           </div>
         </div>
       )}

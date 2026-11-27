@@ -8,6 +8,7 @@ import {
   DISAWAR_SLOTS, STARLINE_SLOTS, addDays, isRedJodi, isoDate, jodiOf, showDate, weekStart, type MarketResult,
 } from './results';
 import { PageHeader } from './screens';
+import { useT } from './i18n';
 import type { LucideIcon } from './types';
 
 const WEEKS = 10;
@@ -34,7 +35,10 @@ function useRows<T extends { date: string; slot?: string }>(path: string): { row
   return { rows, error };
 }
 
-const Status = ({ error }: { error: string }) => <div className="info-box" style={{ margin: 14 }}>{error || 'Loading chart...'}</div>;
+const Status = ({ error }: { error: string }) => {
+  const t = useT();
+  return <div className="info-box" style={{ margin: 14 }}>{error || t('Loading chart...')}</div>;
+};
 
 // ---------- Game Chart hub ----------
 const HUB: { id: 'chartmarkets' | 'starlinechart' | 'disawarchart'; title: string; desc: string; icon: LucideIcon; from: string; to: string; tint: string }[] = [
@@ -44,6 +48,7 @@ const HUB: { id: 'chartmarkets' | 'starlinechart' | 'disawarchart'; title: strin
 ];
 
 export function ChartHubScreen({ onBack, onOpen }: NavProps & { onOpen: (id: string) => void }) {
+  const t = useT();
   return (
     <div className="phone sub">
       <PageHeader title="GAME CHART" subtitle="Explore Game Results" onBack={onBack} right={<BarChart3 size={24} />} />
@@ -51,7 +56,7 @@ export function ChartHubScreen({ onBack, onOpen }: NavProps & { onOpen: (id: str
         {HUB.map(({ id, title, desc, icon: Icon, from, to, tint }) => (
           <button key={id} className="hub-item" onClick={() => onOpen(id)}>
             <span className="hub-icon" style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}><Icon size={32} /></span>
-            <span className="hub-text"><b>{title}</b><small>{desc}</small></span>
+            <span className="hub-text"><b>{t(title)}</b><small>{t(desc)}</small></span>
             <span className="hub-chev" style={{ background: tint, color: to }}>›</span>
           </button>
         ))}
@@ -63,6 +68,7 @@ export function ChartHubScreen({ onBack, onOpen }: NavProps & { onOpen: (id: str
 // ---------- Main market list ----------
 export function ChartMarketsScreen({ onBack, onPick }: NavProps & { onPick: (m: Market, type: 'jodi' | 'panel') => void }) {
   const { markets: all } = useAppData();
+  const t = useT();
   // One row per market name, even if the source list ever repeats one.
   const markets = all.filter((m, i) => all.findIndex((x) => x.name === m.name) === i);
   return (
@@ -72,8 +78,8 @@ export function ChartMarketsScreen({ onBack, onPick }: NavProps & { onPick: (m: 
         {markets.map((m) => (
           <div key={m.name} className="cm-row">
             <span>{m.name}</span>
-            <button onClick={() => onPick(m, 'jodi')}>Jodi</button>
-            <button onClick={() => onPick(m, 'panel')}>Panel</button>
+            <button onClick={() => onPick(m, 'jodi')}>{t('Jodi')}</button>
+            <button onClick={() => onPick(m, 'panel')}>{t('Panel')}</button>
           </div>
         ))}
       </div>
@@ -95,14 +101,15 @@ function weeks(today: Date) {
   });
 }
 
-const range = (mon: Date) => {
+const range = (mon: Date, to: string) => {
   const sun = addDays(mon, 6);
   const f = (d: Date) => showDate(isoDate(d)).slice(0, 5);
-  return <>{f(mon)}<br />to<br />{f(sun)}</>;
+  return <>{f(mon)}<br />{to}<br />{f(sun)}</>;
 };
 
 // ---------- Jodi chart ----------
 export function JodiChartScreen({ market, now, onBack }: NavProps & { market: Market; now: Date }) {
+  const t = useT();
   const first = addDays(weekStart(now), -7 * (WEEKS - 1));
   const { rows, error } = useRows<MarketResult & { date: string }>(
     `/charts/market/${market.id}?from=${isoDate(first)}&to=${isoDate(addDays(weekStart(now), 6))}`);
@@ -112,11 +119,11 @@ export function JodiChartScreen({ market, now, onBack }: NavProps & { market: Ma
       <PageHeader title={market.name.toUpperCase()} subtitle="Jodi Chart" onBack={onBack} right={<Dice5 size={24} />} />
       {!rows ? <Status error={error} /> : <div className="chart-wrap">
         <table className="chart jodi">
-          <thead><tr><th>DATE</th>{WEEKDAYS.map((d) => <th key={d}>{d}</th>)}</tr></thead>
+          <thead><tr><th>{t('Date').toUpperCase()}</th>{WEEKDAYS.map((d) => <th key={d}>{t(d)}</th>)}</tr></thead>
           <tbody>
             {weeks(now).map(({ monday, days }) => (
               <tr key={isoDate(monday)}>
-                <td className="date">{range(monday)}</td>
+                <td className="date">{range(monday, t('to'))}</td>
                 {days.map((d) => {
                   const state = dayState(d, now);
                   const j = state === 'future' ? '' : jodiOf(result(d));
@@ -135,6 +142,7 @@ export function JodiChartScreen({ market, now, onBack }: NavProps & { market: Ma
 const PanaCol = ({ p }: { p?: string }) => <span className="pcol">{p ? [...p].map((c, i) => <span key={i}>{c}</span>) : <><i>*</i><i>*</i><i>*</i></>}</span>;
 
 export function PanelChartScreen({ market, now, onBack }: NavProps & { market: Market; now: Date }) {
+  const t = useT();
   const mins = now.getHours() * 60 + now.getMinutes();
   const first = addDays(weekStart(now), -7 * (WEEKS - 1));
   const { rows, error } = useRows<MarketResult & { date: string }>(
@@ -145,11 +153,11 @@ export function PanelChartScreen({ market, now, onBack }: NavProps & { market: M
       <PageHeader title={market.name.toUpperCase()} subtitle="Panel Chart" onBack={onBack} right={<BarChart3 size={24} />} />
       {!rows ? <Status error={error} /> : <div className="chart-wrap">
         <table className="chart panel">
-          <thead><tr><th>DATE</th>{WEEKDAYS.map((d) => <th key={d}>{d}</th>)}</tr></thead>
+          <thead><tr><th>{t('Date').toUpperCase()}</th>{WEEKDAYS.map((d) => <th key={d}>{t(d)}</th>)}</tr></thead>
           <tbody>
             {weeks(now).map(({ monday, days }) => (
               <tr key={isoDate(monday)}>
-                <td className="date">{range(monday)}</td>
+                <td className="date">{range(monday, t('to'))}</td>
                 {days.map((d) => {
                   const state = dayState(d, now);
                   const r = result(d);
@@ -183,6 +191,7 @@ const lastDays = (now: Date) => Array.from({ length: DAYS }, (_, i) => addDays(n
 const slotHead = (s: string) => { const [t, ap] = s.split(' '); return <>{t}<br />{ap}</>; };
 
 export function StarlineChartScreen({ now, onBack }: NavProps & { now: Date }) {
+  const t = useT();
   const { rows, error } = useRows<{ date: string; slot: string; pana: string }>(
     `/charts/starline?from=${isoDate(addDays(now, -(DAYS - 1)))}&to=${isoDate(now)}`);
   return (
@@ -190,7 +199,7 @@ export function StarlineChartScreen({ now, onBack }: NavProps & { now: Date }) {
       <PageHeader title="STARLINE HISTORY" subtitle="View starline result records" onBack={onBack} right={<Star size={24} fill="#fff" />} />
       {!rows ? <Status error={error} /> : <div className="chart-wrap">
         <table className="chart grid">
-          <thead><tr><th className="date">DATE</th>{STARLINE_SLOTS.map((s) => <th key={s}>{slotHead(s)}</th>)}</tr></thead>
+          <thead><tr><th className="date">{t('Date').toUpperCase()}</th>{STARLINE_SLOTS.map((s) => <th key={s}>{slotHead(s)}</th>)}</tr></thead>
           <tbody>
             {lastDays(now).map((d) => (
               <tr key={isoDate(d)}>
@@ -213,6 +222,7 @@ export function StarlineChartScreen({ now, onBack }: NavProps & { now: Date }) {
 }
 
 export function DisawarChartScreen({ now, onBack }: NavProps & { now: Date }) {
+  const t = useT();
   const { rows, error } = useRows<{ date: string; slot: string; jodi: string }>(
     `/charts/disawar?from=${isoDate(addDays(now, -(DAYS - 1)))}&to=${isoDate(now)}`);
   return (
@@ -220,7 +230,7 @@ export function DisawarChartScreen({ now, onBack }: NavProps & { now: Date }) {
       <PageHeader title="DISHAWAR HISTORY" subtitle="View dishawar result records" onBack={onBack} right={<Dice5 size={24} />} />
       {!rows ? <Status error={error} /> : <div className="chart-wrap">
         <table className="chart grid">
-          <thead><tr><th className="date">DATE</th>{DISAWAR_SLOTS.map((s) => <th key={s}>{slotHead(s)}</th>)}</tr></thead>
+          <thead><tr><th className="date">{t('Date').toUpperCase()}</th>{DISAWAR_SLOTS.map((s) => <th key={s}>{slotHead(s)}</th>)}</tr></thead>
           <tbody>
             {lastDays(now).map((d) => (
               <tr key={isoDate(d)}>

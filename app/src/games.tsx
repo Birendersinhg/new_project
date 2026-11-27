@@ -1,6 +1,7 @@
 import { Gamepad2, X } from 'lucide-react';
 import type { Market } from './data';
 import { PageHeader } from './screens';
+import { useT } from './i18n';
 
 type IconKind = 'dot' | 'jodi' | 'card' | 'cards2' | 'cards3' | 'chip' | 'fan' | 'spread' | 'ring';
 
@@ -48,6 +49,7 @@ interface GameTypesProps {
 }
 
 export function GameTypesScreen({ market, onBack, onPick }: GameTypesProps) {
+  const t = useT();
   return (
     <div className="phone sub">
       <PageHeader title={market.name.toUpperCase()} subtitle="Select Game Type" onBack={onBack} right={<Gamepad2 size={26} />} />
@@ -55,7 +57,7 @@ export function GameTypesScreen({ market, onBack, onPick }: GameTypesProps) {
         {GAME_TYPES.map((g) => (
           <button key={g.name} className="game-tile" onClick={() => onPick(g.name)}>
             <span className="game-icon"><GameIcon kind={g.icon} /></span>
-            <b>{g.name}</b>
+            <b>{t(g.name)}</b>
           </button>
         ))}
       </div>
@@ -64,13 +66,14 @@ export function GameTypesScreen({ market, onBack, onPick }: GameTypesProps) {
 }
 
 export function ClosedModal({ onClose }: { onClose: () => void }) {
+  const t = useT();
   return (
     <div className="overlay center" onClick={onClose}>
       <div className="closed-modal" onClick={(e) => e.stopPropagation()}>
         <span className="closed-x"><X size={46} strokeWidth={2.6} /></span>
-        <h3>Sorry !</h3>
-        <p>Market is Closed for today. Please come next day to play.</p>
-        <button className="auth-btn" onClick={onClose}>OK</button>
+        <h3>{t('Sorry !')}</h3>
+        <p>{t('Market is Closed for today. Please come next day to play.')}</p>
+        <button className="auth-btn" onClick={onClose}>{t('OK')}</button>
       </div>
     </div>
   );

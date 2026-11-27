@@ -7,6 +7,7 @@ import type { Go, LucideIcon } from './types';
 import { useAppData } from './appdata';
 import { api, type AppNotification } from './api';
 import { whatsappLink } from './content';
+import { useT } from './i18n';
 
 interface PageHeaderProps {
   title: string;
@@ -16,12 +17,13 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, onBack, right }: PageHeaderProps) {
+  const t = useT();
   return (
     <header className="page-header">
       <button className="ph-btn" onClick={onBack} aria-label="Back"><ChevronLeft size={30} /></button>
       <div className="ph-title">
-        <h2>{title}</h2>
-        {subtitle && <p>{subtitle}</p>}
+        <h2>{t(title)}</h2>
+        {subtitle && <p>{t(subtitle)}</p>}
       </div>
       <div className="ph-btn ph-right">{right}</div>
     </header>
@@ -39,10 +41,11 @@ interface HubItemProps {
 }
 
 function HubItem({ icon: Icon, title, desc, from, to, tint, onClick }: HubItemProps) {
+  const t = useT();
   return (
     <button className="hub-item" onClick={onClick}>
       <span className="hub-icon" style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}><Icon size={32} /></span>
-      <span className="hub-text"><b>{title}</b><small>{desc}</small></span>
+      <span className="hub-text"><b>{t(title)}</b><small>{t(desc)}</small></span>
       <span className="hub-chev" style={{ background: tint, color: to }}><ChevronRight size={22} /></span>
     </button>
   );
@@ -91,6 +94,7 @@ export function FundsScreen({ onBack, onOpen }: ScreenNavProps) {
 export function NotificationsScreen({ onBack }: { onBack: () => void }) {
   const [list, setList] = useState<AppNotification[] | null>(null);
   const [error, setError] = useState('');
+  const t = useT();
   const load = () => {
     setError('');
     api<AppNotification[]>('GET', '/notifications').then(setList).catch((err: Error) => setError(err.message));
@@ -114,7 +118,7 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
       ) : (
         <div className="empty">
           <span className="empty-icon"><Bell size={56} /></span>
-          <h3>{error || (list ? 'No Messages Yet' : 'Loading...')}</h3>
+          <h3>{error || t(list ? 'No Messages Yet' : 'Loading...')}</h3>
         </div>
       )}
     </div>
@@ -122,19 +126,21 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
 }
 
 export function PlaceholderScreen({ title, onBack }: { title: string; onBack: () => void }) {
+  const t = useT();
   return (
     <div className="phone sub">
       <PageHeader title={title.toUpperCase()} onBack={onBack} right={<Hammer size={22} />} />
-      <div className="empty"><h3>Coming soon</h3></div>
+      <div className="empty"><h3>{t('Coming soon')}</h3></div>
     </div>
   );
 }
 
 /** Opens the admin's phone/WhatsApp; shows "Not available" when the admin hasn't set that number. */
 function ContactRow({ href, className, label, onClick }: { href?: string; className: string; label: string; onClick?: () => void }) {
+  const t = useT();
   const inner = <>
     <span className={`modal-icon ${className}`}><MessageSquareText size={28} /></span>
-    <b>{label}{!href && !onClick && <small className="na">Not available</small>}</b><ChevronRight size={22} />
+    <b>{t(label)}{!href && !onClick && <small className="na">{t('Not available')}</small>}</b><ChevronRight size={22} />
   </>;
   if (onClick) return <button className="modal-row" onClick={onClick}>{inner}</button>;
   return href
@@ -144,12 +150,13 @@ function ContactRow({ href, className, label, onClick }: { href?: string; classN
 
 export function SupportModal({ onClose, onChat }: { onClose: () => void; onChat: () => void }) {
   const { settings } = useAppData();
+  const t = useT();
   return (
     <div className="overlay center" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <Headphones size={30} />
-          <h3>Support Center</h3>
+          <h3>{t('Support Center')}</h3>
           <button className="modal-x" onClick={onClose} aria-label="Close"><X size={22} /></button>
         </div>
         {settings.texts.support && <p className="modal-note">{settings.texts.support}</p>}

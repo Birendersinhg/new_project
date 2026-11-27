@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/games.test.mjs && node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/results.test.mjs && node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/upi.test.mjs",
+    "test": "node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/games.test.mjs && node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/results.test.mjs && node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/upi.test.mjs && node --experimental-strip-types --no-warnings --import ./scripts/ts-loader.mjs scripts/i18n.test.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },

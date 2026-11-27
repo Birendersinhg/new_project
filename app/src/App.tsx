@@ -21,6 +21,8 @@ import { BidHistoryScreen, PassbookScreen } from './history';
 import { SlotGamesScreen, SlotPlayScreen, SlotsScreen } from './slots';
 import { LiveChatScreen } from './livechat';
 import QuizApp from './quiz';
+import { useT } from './i18n';
+import { LanguageButton } from './langpicker';
 import { Banner, HowToPlayScreen, NoticeScreen } from './content';
 import {
   ChartHubScreen, ChartMarketsScreen, JodiChartScreen, PanelChartScreen, StarlineChartScreen, DisawarChartScreen,
@@ -42,26 +44,27 @@ interface MarketCardProps {
 }
 
 function MarketCard({ market, running, onOpen, onChart }: MarketCardProps) {
+  const t = useT();
   return (
     <div className="card" onClick={onOpen}>
       <div className="card-info">
         <h3>{market.name}</h3>
         <div className="result">{resultText(market)}</div>
         <div className="times">
-          <div><span>Open Bids</span><b>{market.open}</b></div>
-          <div><span>Close Bids</span><b>{market.close}</b></div>
+          <div><span>{t('Open Bids')}</span><b>{market.open}</b></div>
+          <div><span>{t('Close Bids')}</span><b>{market.close}</b></div>
         </div>
       </div>
       <div className="card-actions">
         <button className="round chart" aria-label="Chart" onClick={(e) => { e.stopPropagation(); onChart(); }}><BarChart3 size={26} /></button>
-        <span className="label chart-label">Chart</span>
+        <span className="label chart-label">{t('Chart')}</span>
       </div>
       <div className="card-actions">
         <button className={`round ${running ? 'run' : 'closed'}`} aria-label={running ? 'Play' : 'Closed'}>
           {running ? <Play size={26} fill="#fff" /> : <X size={30} />}
         </button>
         <span className={`label ${running ? 'run-label' : 'closed-label'}`}>
-          {running ? 'Running Now' : 'Closed Now'}
+          {t(running ? 'Running Now' : 'Closed Now')}
         </span>
       </div>
     </div>
@@ -81,12 +84,14 @@ interface HomeScreenProps {
 
 function HomeScreen({ now, balance, mobile, go, onMenu, onSupport, onMarket, onChart }: HomeScreenProps) {
   const { markets, settings } = useAppData();
+  const t = useT();
   return (
     <div className="phone">
       <header className="header">
         <button className="icon-btn" aria-label="Menu" onClick={onMenu}><Menu size={34} /></button>
         <h1>Kalyan</h1>
         <button className="wallet" onClick={() => go('addmoney')}><Wallet size={22} /> ₹{balance.toFixed(1)}</button>
+        <LanguageButton />
         <button className="icon-btn" aria-label="Notifications" onClick={() => go('notifications')}><Bell size={30} /></button>
       </header>
       <div className="ticker">
@@ -98,13 +103,13 @@ function HomeScreen({ now, balance, mobile, go, onMenu, onSupport, onMarket, onC
       <Banner />
       {settings.texts.home && <div className="info-box home-info">{settings.texts.home}</div>}
       <div className="top-actions">
-        <button className="pill-btn" onClick={() => go('starline')}><PlayCircle size={30} /> STARLINE</button>
-        <button className="pill-btn bright" onClick={() => go('jackpot')}><PlayCircle size={30} /> JACKPOT</button>
+        <button className="pill-btn" onClick={() => go('starline')}><PlayCircle size={30} /> {t('STARLINE')}</button>
+        <button className="pill-btn bright" onClick={() => go('jackpot')}><PlayCircle size={30} /> {t('JACKPOT')}</button>
       </div>
       <div className="contact">
         <span className="call"><Phone size={20} fill="#fff" /></span>
         <span className="number">+91 {mobile.slice(0, 5)} {mobile.slice(5)}</span>
-        <button className="deposit" onClick={() => go('addmoney')}><Wallet size={22} /> Deposit</button>
+        <button className="deposit" onClick={() => go('addmoney')}><Wallet size={22} /> {t('Deposit')}</button>
       </div>
       <div className="list">
         {markets.map((m) => <MarketCard key={m.id} market={m} running={isRunning(m, now)} onOpen={() => onMarket(m)} onChart={() => onChart(m)} />)}
@@ -119,7 +124,7 @@ function HomeScreen({ now, balance, mobile, go, onMenu, onSupport, onMarket, onC
             onClick={() => (id === 'support' ? onSupport() : go(id))}
           >
             <Icon size={id === 'home' ? 28 : 26} />
-            <span>{label}</span>
+            <span>{t(label)}</span>
           </button>
         ))}
       </nav>
@@ -128,6 +133,7 @@ function HomeScreen({ now, balance, mobile, go, onMenu, onSupport, onMarket, onC
 }
 
 export default function App() {
+  const t = useT();
   const [token, setTokenState] = useState(getToken);
   const [me, setMe] = useState<Me | null>(null);
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -188,7 +194,7 @@ export default function App() {
   if (!me || !settings) {
     return (
       <div className="phone"><div className="empty">
-        {loadError ? <><h3>Could not load</h3><p>{loadError}</p><button className="auth-btn" style={{ maxWidth: 220 }} onClick={load}>TRY AGAIN</button></> : <h3>Loading...</h3>}
+        {loadError ? <><h3>{t('Could not load')}</h3><p>{loadError}</p><button className="auth-btn" style={{ maxWidth: 220 }} onClick={load}>{t('TRY AGAIN')}</button></> : <h3>{t('Loading...')}</h3>}
       </div></div>
     );
   }

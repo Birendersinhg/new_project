@@ -3,6 +3,7 @@ import { BookOpen, Receipt } from 'lucide-react';
 import { api, type MyBid, type PassbookRow, type SlotBid } from './api';
 import { showDate } from './results';
 import { PageHeader } from './screens';
+import { useT } from './i18n';
 
 const STATUS = { pending: 'Pending', won: 'Won', lost: 'Lost', reverted: 'Refunded' } as const;
 
@@ -15,6 +16,7 @@ const HISTORY: Record<HistoryKind, { title: string; subtitle: string; empty: str
 
 /** All bids, or only Starline or only Jackpot (Disawar) bids, newest first. */
 export function BidHistoryScreen({ onBack, kind = 'all' }: { onBack: () => void; kind?: HistoryKind }) {
+  const t = useT();
   const [bids, setBids] = useState<MyBid[] | null>(null);
   const [error, setError] = useState('');
 
@@ -36,16 +38,16 @@ export function BidHistoryScreen({ onBack, kind = 'all' }: { onBack: () => void;
     <div className="phone sub money">
       <PageHeader title={HISTORY[kind].title} subtitle={HISTORY[kind].subtitle} onBack={onBack} right={<Receipt size={24} />} />
       <div className="hub">
-        {!bids && <div className="info-box">{error || 'Loading...'}</div>}
-        {bids?.length === 0 && <div className="info-box">{HISTORY[kind].empty}</div>}
+        {!bids && <div className="info-box">{error || t('Loading...')}</div>}
+        {bids?.length === 0 && <div className="info-box">{t(HISTORY[kind].empty)}</div>}
         {bids?.map((b) => (
           <div key={b.id} className="bh-row">
             <div className="bh-top">
-              <b>{b.market}</b>
-              <span className={`bh-status ${b.status}`}>{STATUS[b.status]}{b.status === 'won' ? ` ₹${b.win}` : ''}</span>
+              <b>{b.market.replace(/^(Starline|Jackpot)/, (m) => t(m))}</b>
+              <span className={`bh-status ${b.status}`}>{t(STATUS[b.status])}{b.status === 'won' ? ` ₹${b.win}` : ''}</span>
             </div>
             <div className="bh-mid">
-              <span>{b.game}{b.session ? ` · ${b.session}` : ''}</span>
+              <span>{t(b.game)}{b.session ? ` · ${t(b.session)}` : ''}</span>
               <span className="bh-num">{b.number}</span>
             </div>
             <div className="bh-bot">
@@ -61,6 +63,7 @@ export function BidHistoryScreen({ onBack, kind = 'all' }: { onBack: () => void;
 
 /** Every credit and debit on the user's points, with the balance after each one. */
 export function PassbookScreen({ onBack }: { onBack: () => void }) {
+  const t = useT();
   const [rows, setRows] = useState<PassbookRow[] | null>(null);
   const [error, setError] = useState('');
 
@@ -72,8 +75,8 @@ export function PassbookScreen({ onBack }: { onBack: () => void }) {
     <div className="phone sub money">
       <PageHeader title="PASSBOOK" subtitle="Your points statement" onBack={onBack} right={<BookOpen size={24} />} />
       <div className="hub">
-        {!rows && <div className="info-box">{error || 'Loading...'}</div>}
-        {rows?.length === 0 && <div className="info-box">No entries yet.</div>}
+        {!rows && <div className="info-box">{error || t('Loading...')}</div>}
+        {rows?.length === 0 && <div className="info-box">{t('No entries yet.')}</div>}
         {rows?.map((r) => (
           <div key={r.id} className="bh-row">
             <div className="bh-top">
@@ -82,7 +85,7 @@ export function PassbookScreen({ onBack }: { onBack: () => void }) {
             </div>
             <div className="bh-bot">
               <span>{showDate(r.at.slice(0, 10))} {r.at.slice(11, 16)}</span>
-              <span>Balance: {r.balance}</span>
+              <span>{t('Balance: {n}', { n: r.balance })}</span>
             </div>
           </div>
         ))}

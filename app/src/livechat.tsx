@@ -3,11 +3,13 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
 import { api, type SupportMessage } from './api';
 import { PageHeader } from './screens';
+import { useT } from './i18n';
 
 const timeOf = (at: string) => at.slice(11, 16);
 const dayOf = (at: string) => at.slice(0, 10).split('-').reverse().join('-');
 
 export function LiveChatScreen({ onBack }: { onBack: () => void }) {
+  const t = useT();
   const [messages, setMessages] = useState<SupportMessage[] | null>(null);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -50,8 +52,8 @@ export function LiveChatScreen({ onBack }: { onBack: () => void }) {
     <div className="phone sub chat">
       <PageHeader title="LIVE CHAT" subtitle="Chat with our support team" onBack={onBack} right={<MessageCircle size={24} />} />
       <div className="chat-list">
-        {!messages && <div className="info-box">{error || 'Loading...'}</div>}
-        {messages?.length === 0 && <div className="info-box">Say hello. Our team will reply here.</div>}
+        {!messages && <div className="info-box">{error || t('Loading...')}</div>}
+        {messages?.length === 0 && <div className="info-box">{t('Say hello. Our team will reply here.')}</div>}
         {messages?.map((m, i) => (
           <div key={m.id}>
             {(i === 0 || dayOf(messages[i - 1].at) !== dayOf(m.at)) && <div className="chat-day">{dayOf(m.at)}</div>}
@@ -65,7 +67,7 @@ export function LiveChatScreen({ onBack }: { onBack: () => void }) {
       </div>
       {error && messages && <div className="auth-error chat-error">{error}</div>}
       <form className="chat-form" onSubmit={send}>
-        <input value={text} maxLength={1000} placeholder="Type your message..." onChange={(e) => { setText(e.target.value); setError(''); }} />
+        <input value={text} maxLength={1000} placeholder={t('Type your message...')} onChange={(e) => { setText(e.target.value); setError(''); }} />
         <button className="chat-send" disabled={!text.trim() || sending} aria-label="Send"><Send size={22} /></button>
       </form>
     </div>

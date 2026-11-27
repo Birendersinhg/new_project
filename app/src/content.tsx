@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Megaphone, PlayCircle } from 'lucide-react';
 import { useAppData } from './appdata';
 import { PageHeader } from './screens';
+import { useT } from './i18n';
 
 /** "+91 98765 43210" -> "9876543210"-style digits for tel: links. */
 const digits = (s: string) => s.replace(/\D/g, '');
@@ -18,11 +19,12 @@ function linkify(text: string) {
 function TextScreen({ title, subtitle, text, empty, icon, onBack }: {
   title: string; subtitle: string; text: string; empty: string; icon: React.ReactNode; onBack: () => void;
 }) {
+  const t = useT();
   return (
     <div className="phone sub money">
       <PageHeader title={title} subtitle={subtitle} onBack={onBack} right={icon} />
       <div className="hub">
-        <div className="info-text">{linkify(text.trim() || empty)}</div>
+        <div className="info-text">{linkify(text.trim() || t(empty))}</div>
       </div>
     </div>
   );

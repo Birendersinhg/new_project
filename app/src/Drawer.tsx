@@ -3,6 +3,7 @@ import {
   Clock, Megaphone, PlayCircle, Settings, Share2, LogOut,
 } from 'lucide-react';
 import type { Go, LucideIcon } from './types';
+import { useT } from './i18n';
 
 const ITEMS: { id: string; label: string; icon: LucideIcon; bg: string; fg: string }[] = [
   { id: 'addmoney', label: 'Add Money', icon: CreditCard, bg: '#e6f4ea', fg: '#2e9e4f' },
@@ -29,6 +30,7 @@ interface DrawerProps {
 }
 
 export default function Drawer({ open, user, onClose, onNavigate, onLogout }: DrawerProps) {
+  const t = useT();
   return (
     <div className={`overlay drawer-wrap ${open ? 'open' : ''}`} onClick={onClose}>
       <aside className="drawer" onClick={(e) => e.stopPropagation()}>
@@ -44,13 +46,13 @@ export default function Drawer({ open, user, onClose, onNavigate, onLogout }: Dr
           {ITEMS.map(({ id, label, icon: Icon, bg, fg }) => (
             <button key={label} className="drawer-item" style={{ background: bg }} onClick={() => onNavigate(id)}>
               <span className="di-icon" style={{ color: fg }}><Icon size={24} /></span>
-              <b>{label}</b>
+              <b>{t(label)}</b>
               <ChevronRight size={20} style={{ color: fg }} />
             </button>
           ))}
           <button className="drawer-item logout" onClick={onLogout}>
             <span className="di-icon"><LogOut size={26} /></span>
-            <b>Log Out</b>
+            <b>{t('Log Out')}</b>
             <ChevronRight size={20} />
           </button>
         </div>
