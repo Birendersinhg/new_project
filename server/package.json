@@ -7,7 +7,7 @@
     "dev": "node --watch --import ./scripts/load-env.mjs --no-warnings src/index.ts",
     "start": "node --import ./scripts/load-env.mjs --no-warnings src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --no-warnings scripts/otp.test.ts && node --no-warnings scripts/migrate.test.ts && node --no-warnings scripts/api.test.ts && node --no-warnings scripts/slots.test.ts && node --no-warnings scripts/support.test.ts"
+    "test": "node --no-warnings scripts/otp.test.ts && node --no-warnings scripts/migrate.test.ts && node --no-warnings scripts/api.test.ts && node --no-warnings scripts/slots.test.ts && node --no-warnings scripts/support.test.ts && node --no-warnings scripts/history.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
